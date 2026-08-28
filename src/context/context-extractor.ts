@@ -6,19 +6,49 @@ type Heading = {
   from: number;
 };
 
-const ATX_HEADING = /^(#{1,6})[ \t]+(.+?)[ \t]*$/gm;
+const ATX_HEADING = /^(#{1,6})[ \t]+(.+?)[ \t]*$/;
+const FENCE = /^[ \t]{0,3}(`{3,}|~{3,})(.*)$/;
 
 function findHeadings(markdown: string): Heading[] {
   const headings: Heading[] = [];
+  let activeFence: { marker: "`" | "~"; length: number } | null = null;
 
-  for (const match of markdown.matchAll(ATX_HEADING)) {
-    const marker = match[1];
-    const rawText = match[2];
-    const from = match.index;
+  for (const lineMatch of markdown.matchAll(/^.*$/gm)) {
+    const line = lineMatch[0];
+    const from = lineMatch.index;
+    const fenceMatch = line.match(FENCE);
 
-    if (!marker || rawText === undefined || from === undefined) {
+    if (activeFence) {
+      if (fenceMatch) {
+        const fence = fenceMatch[1];
+        const rest = fenceMatch[2];
+        if (
+          fence[0] === activeFence.marker &&
+          fence.length >= activeFence.length &&
+          rest.trim().length === 0
+        ) {
+          activeFence = null;
+        }
+      }
       continue;
     }
+
+    if (fenceMatch) {
+      const fence = fenceMatch[1];
+      activeFence = {
+        marker: fence[0] as "`" | "~",
+        length: fence.length,
+      };
+      continue;
+    }
+
+    const match = line.match(ATX_HEADING);
+    if (!match) {
+      continue;
+    }
+
+    const marker = match[1];
+    const rawText = match[2];
 
     headings.push({
       level: marker.length,
