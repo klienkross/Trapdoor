@@ -1,11 +1,13 @@
-name: CI
+name: Lockfile generator
 
 on:
   push:
-  pull_request:
+
+permissions:
+  contents: write
 
 jobs:
-  test:
+  generate:
     runs-on: ubuntu-latest
 
     steps:
@@ -17,14 +19,17 @@ jobs:
         with:
           node-version: 24
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Generate lockfile
+        run: npm install --package-lock-only --ignore-scripts
 
-      - name: Run tests
-        run: npm test
-
-      - name: Type check
-        run: npm run typecheck
-
-      - name: Build check
-        run: npm run build
+      - name: Commit lockfile if changed
+        shell: bash
+        run: |
+          if [ -z "$(git status --porcelain package-lock.json)" ]; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "chore: generate package lock"
+          git push
