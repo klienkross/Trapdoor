@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { extractSection, extractWholeNote } from "../../src/context/context-extractor";
 
 describe("extractSection", () => {
-  it("extracts the cursor's heading section through nested headings until the next same-or-higher heading", () => {
+  it("extracts the nearest heading section until the next same-or-higher heading", () => {
     const markdown = [
       "# Note",
       "intro",
@@ -10,18 +10,20 @@ describe("extractSection", () => {
       "alpha body",
       "### Detail",
       "detail body",
+      "#### Nested",
+      "nested body",
       "## Beta",
       "beta body",
     ].join("\n");
     const cursorOffset = markdown.indexOf("detail body");
 
     const context = extractSection(markdown, cursorOffset, "notes/example.md");
-    const expectedText = ["## Alpha", "alpha body", "### Detail", "detail body"].join("\n");
+    const expectedText = ["### Detail", "detail body", "#### Nested", "nested body"].join("\n");
 
     expect(context).toEqual({
       notePath: "notes/example.md",
-      heading: "Alpha",
-      from: markdown.indexOf("## Alpha"),
+      heading: "Detail",
+      from: markdown.indexOf("### Detail"),
       to: markdown.indexOf("## Beta"),
       text: expectedText,
       scope: "section",
