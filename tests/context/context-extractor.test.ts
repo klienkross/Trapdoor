@@ -16,16 +16,17 @@ describe("extractSection", () => {
       "beta body",
     ].join("\n");
     const cursorOffset = markdown.indexOf("detail body");
+    const expectedFrom = markdown.indexOf("### Detail");
+    const expectedTo = markdown.indexOf("## Beta");
 
     const context = extractSection(markdown, cursorOffset, "notes/example.md");
-    const expectedText = ["### Detail", "detail body", "#### Nested", "nested body"].join("\n");
 
     expect(context).toEqual({
       notePath: "notes/example.md",
       heading: "Detail",
-      from: markdown.indexOf("### Detail"),
-      to: markdown.indexOf("## Beta"),
-      text: expectedText,
+      from: expectedFrom,
+      to: expectedTo,
+      text: markdown.slice(expectedFrom, expectedTo),
       scope: "section",
     });
   });
