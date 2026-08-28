@@ -31,6 +31,42 @@ describe("extractSection", () => {
     });
   });
 
+  it.each([
+    ["backtick", "```"],
+    ["tilde", "~~~"],
+  ])("ignores fake headings inside %s fenced code blocks", (_name, fence) => {
+    const markdown = [
+      "## Alpha",
+      "before fence",
+      fence,
+      "# fake heading",
+      "code body",
+      fence,
+      "after fence",
+      "## Beta",
+      "beta body",
+    ].join("\n");
+    const expectedFrom = markdown.indexOf("## Alpha");
+    const expectedTo = markdown.indexOf("## Beta");
+
+    for (const cursorText of ["before fence", "after fence"]) {
+      const context = extractSection(
+        markdown,
+        markdown.indexOf(cursorText),
+        "notes/example.md",
+      );
+
+      expect(context).toEqual({
+        notePath: "notes/example.md",
+        heading: "Alpha",
+        from: expectedFrom,
+        to: expectedTo,
+        text: markdown.slice(expectedFrom, expectedTo),
+        scope: "section",
+      });
+    }
+  });
+
   it("uses the preamble before the first heading when the cursor is there", () => {
     const markdown = ["preamble line", "another line", "# First", "body"].join("\n");
 
