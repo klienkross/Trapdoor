@@ -68,9 +68,12 @@ export function measureExploration(text: string): ExplorationMeasurement {
   if (questionMatches.length > 0) {
     const densityPerHundredChars =
       (questionMatches.length / Math.max(1, compactLength)) * 100;
+    const densityContribution = densityPerHundredChars * 0.2;
+    const countContribution = questionMatches.length * 0.2;
+
     signals.push({
       kind: "question_mark_density",
-      contribution: Math.min(0.8, densityPerHundredChars * 0.2),
+      contribution: Math.min(0.8, densityContribution, countContribution),
       matches: questionMatches,
     });
   }
