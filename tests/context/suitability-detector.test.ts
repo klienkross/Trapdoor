@@ -15,12 +15,24 @@ describe("measureExploration", () => {
     expect(result.shouldSkip).toBe(false);
   });
 
+  it("does not skip a short ordinary passage because of one question mark", () => {
+    const result = measureExploration("这个结论为什么成立？后面会继续解释具体机制。 ");
+    const signal = result.signals.find((item) => item.kind === "question_mark_density");
+
+    expect(signal?.matches).toEqual(["？"]);
+    expect(signal?.contribution).toBeLessThan(EXPLORATION_SKIP_THRESHOLD);
+    expect(result.score).toBeLessThan(EXPLORATION_SKIP_THRESHOLD);
+    expect(result.shouldSkip).toBe(false);
+  });
+
   it("treats high question-mark density as strong exploration", () => {
     const result = measureExploration(
       "为什么会这样？证据是什么？边界在哪？还有反例吗？替代解释呢？机制可靠吗？",
     );
+    const signal = result.signals.find((item) => item.kind === "question_mark_density");
 
-    expect(result.signals.some((signal) => signal.kind === "question_mark_density")).toBe(true);
+    expect(signal?.matches.length).toBeGreaterThan(1);
+    expect(signal?.contribution).toBeGreaterThanOrEqual(EXPLORATION_SKIP_THRESHOLD);
     expect(result.score).toBeGreaterThanOrEqual(EXPLORATION_SKIP_THRESHOLD);
     expect(result.shouldSkip).toBe(true);
   });
