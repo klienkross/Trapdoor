@@ -23,6 +23,9 @@ export class ItemView {
   }
 }
 
+export class MarkdownView {}
+export type App = never;
+
 export class Plugin {
   readonly registeredViews: Array<{ type: string; creator: ViewCreator }> = [];
   readonly commands: Command[] = [];
