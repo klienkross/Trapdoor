@@ -3,7 +3,6 @@ import type { QuestionCandidate } from "../../src/domain/types";
 import { FeedbackStore } from "../../src/feedback/feedback-store";
 import {
   FEEDBACK_FILE_PATH,
-  FeedbackFileError,
   clearFeedback,
   hasMeaningfulFeedback,
   loadFeedback,
@@ -122,7 +121,7 @@ describe("question-feedback.json persistence", () => {
     const files = new FakeTextFileStore();
     files.files.set(FEEDBACK_FILE_PATH, "{ nope");
 
-    await expect(loadFeedback(files)).rejects.toMatchObject<Partial<FeedbackFileError>>({
+    await expect(loadFeedback(files)).rejects.toMatchObject({
       name: "FeedbackFileError",
       kind: "invalid_json",
     });
@@ -134,7 +133,7 @@ describe("question-feedback.json persistence", () => {
     const files = new FakeTextFileStore();
     files.files.set(FEEDBACK_FILE_PATH, JSON.stringify({ version: 1, templates: [] }));
 
-    await expect(loadFeedback(files)).rejects.toMatchObject<Partial<FeedbackFileError>>({
+    await expect(loadFeedback(files)).rejects.toMatchObject({
       name: "FeedbackFileError",
       kind: "invalid_shape",
     });
