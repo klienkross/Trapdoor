@@ -26,12 +26,19 @@ export type NoteSuppression = {
   candidateIds: string[];
 };
 
-type Counter = {
+export type FeedbackCounter = {
   shown: number;
   bad: number;
 };
 
-type FeedbackStoreOptions = {
+export type FeedbackStoreState = {
+  templates: Record<string, FeedbackCounter>;
+  categories: Partial<Record<ChallengeCategory, FeedbackCounter>>;
+  recentHistory: FeedbackHistoryEntry[];
+  recentShownHistory: FeedbackHistoryEntry[];
+};
+
+export type FeedbackStoreOptions = {
   recentLimit?: number;
   recentShownLimit?: number;
 };
@@ -39,11 +46,11 @@ type FeedbackStoreOptions = {
 const DEFAULT_RECENT_LIMIT = 10;
 const DEFAULT_RECENT_SHOWN_LIMIT = 10;
 
-function emptyCounter(): Counter {
+function emptyCounter(): FeedbackCounter {
   return { shown: 0, bad: 0 };
 }
 
-function withBadRate(counter: Counter): FeedbackStats {
+function withBadRate(counter: FeedbackCounter): FeedbackStats {
   return {
     shown: counter.shown,
     bad: counter.bad,
@@ -55,11 +62,19 @@ function pushUnique<T>(items: T[], value: T): void {
   if (!items.includes(value)) items.push(value);
 }
 
+function cloneCounter(counter: FeedbackCounter): FeedbackCounter {
+  return { shown: counter.shown, bad: counter.bad };
+}
+
+function cloneHistoryEntry(entry: FeedbackHistoryEntry): FeedbackHistoryEntry {
+  return { ...entry, targets: [...entry.targets] };
+}
+
 export class FeedbackStore {
   private readonly recentLimit: number;
   private readonly recentShownLimit: number;
-  private readonly templateCounters: Record<string, Counter> = {};
-  private readonly categoryCounters: Partial<Record<ChallengeCategory, Counter>> = {};
+  private readonly templateCounters: Record<string, FeedbackCounter> = {};
+  private readonly categoryCounters: Partial<Record<ChallengeCategory, FeedbackCounter>> = {};
   private readonly recentHistory: FeedbackHistoryEntry[] = [];
   private readonly recentShownHistory: FeedbackHistoryEntry[] = [];
 
@@ -69,6 +84,29 @@ export class FeedbackStore {
       DEFAULT_RECENT_SHOWN_LIMIT,
       Math.floor(options.recentShownLimit ?? DEFAULT_RECENT_SHOWN_LIMIT),
     );
+  }
+
+  static fromState(state: FeedbackStoreState, options: FeedbackStoreOptions = {}): FeedbackStore {
+    const store = new FeedbackStore(options);
+
+    for (const [templateId, counter] of Object.entries(state.templates)) {
+      store.templateCounters[templateId] = cloneCounter(counter);
+    }
+
+    for (const [category, counter] of Object.entries(state.categories) as Array<
+      [ChallengeCategory, FeedbackCounter]
+    >) {
+      store.categoryCounters[category] = cloneCounter(counter);
+    }
+
+    store.recentHistory.push(
+      ...state.recentHistory.slice(-store.recentLimit).map(cloneHistoryEntry),
+    );
+    store.recentShownHistory.push(
+      ...state.recentShownHistory.slice(-store.recentShownLimit).map(cloneHistoryEntry),
+    );
+
+    return store;
   }
 
   recordShown(candidate: QuestionCandidate, timestamp: number): void {
@@ -133,11 +171,41 @@ export class FeedbackStore {
     );
   }
 
-  private getOrCreateTemplateCounter(templateId: string): Counter {
+  exportState(): FeedbackStoreState {
+    const templates: Record<string, FeedbackCounter> = {};
+    for (const [templateId, counter] of Object.entries(this.templateCounters)) {
+      templates[templateId] = cloneCounter(counter);
+    }
+
+    const categories: Partial<Record<ChallengeCategory, FeedbackCounter>> = {};
+    for (const [category, counter] of Object.entries(this.categoryCounters) as Array<
+      [ChallengeCategory, FeedbackCounter]
+    >) {
+      categories[category] = cloneCounter(counter);
+    }
+
+    return {
+      templates,
+      categories,
+      recentHistory: this.cloneHistory(this.recentHistory),
+      recentShownHistory: this.cloneHistory(this.recentShownHistory),
+    };
+  }
+
+  clear(): void {
+    for (const key of Object.keys(this.templateCounters)) delete this.templateCounters[key];
+    for (const key of Object.keys(this.categoryCounters) as ChallengeCategory[]) {
+      delete this.categoryCounters[key];
+    }
+    this.recentHistory.splice(0);
+    this.recentShownHistory.splice(0);
+  }
+
+  private getOrCreateTemplateCounter(templateId: string): FeedbackCounter {
     return (this.templateCounters[templateId] ??= emptyCounter());
   }
 
-  private getOrCreateCategoryCounter(category: ChallengeCategory): Counter {
+  private getOrCreateCategoryCounter(category: ChallengeCategory): FeedbackCounter {
     return (this.categoryCounters[category] ??= emptyCounter());
   }
 
@@ -176,6 +244,6 @@ export class FeedbackStore {
   }
 
   private cloneHistory(history: readonly FeedbackHistoryEntry[]): FeedbackHistoryEntry[] {
-    return history.map((entry) => ({ ...entry, targets: [...entry.targets] }));
+    return history.map(cloneHistoryEntry);
   }
 }
