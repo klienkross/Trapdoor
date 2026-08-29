@@ -39,6 +39,7 @@ describe("detectPatterns", () => {
 
   it.each([
     ["注意力是有限的认知资源。", "是"],
+    ["这个方案是临时实现。", "是"],
     ["熵增意味着可用能量减少。", "意味着"],
     ["这个概念本质上是一种边界约束。", "本质上"],
     ["缓存命中率定义为命中次数除以访问次数。", "定义为"],
@@ -57,6 +58,9 @@ describe("detectPatterns", () => {
     "于是系统重新尝试。",
     "这个值总是在变化。",
     "还是需要继续验证。",
+    "我们还是需要继续验证。",
+    "这个方案还是不够稳定。",
+    "他们还是决定回滚。",
   ])("does not treat non-copular 是 as a definition trigger: %s", (text) => {
     expect(findCategory(text, "definition_boundary")).toBeUndefined();
   });
