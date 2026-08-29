@@ -68,6 +68,13 @@ function makePlugin(actions = makeActions(), existing: WorkspaceLeaf[] = []) {
   return { plugin, workspace, actions, views, commands };
 }
 
+async function invokeCommand(command: CommandRegistration): Promise<void> {
+  if (!command.callback) {
+    throw new Error("Expected a callback command");
+  }
+  await command.callback();
+}
+
 describe("Task 15 challenge UI registration", () => {
   it("registers the Task 14 view type and creates ChallengeView", async () => {
     installDocument();
@@ -147,7 +154,7 @@ describe("Task 15 challenge UI registration", () => {
     });
 
     await plugin.onload();
-    await commands[0]!.callback();
+    await invokeCommand(commands[0]!);
 
     expect(events).toEqual(["reveal", "request"]);
     expect(actions.requestChallenge).toHaveBeenCalledTimes(1);
@@ -167,7 +174,7 @@ describe("Task 15 challenge UI registration", () => {
     button.click();
     expect(actions.requestChallenge).toHaveBeenCalledTimes(1);
 
-    await commands[0]!.callback();
+    await invokeCommand(commands[0]!);
     expect(actions.requestChallenge).toHaveBeenCalledTimes(2);
   });
 });
