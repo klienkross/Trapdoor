@@ -13,6 +13,9 @@ export type FeedbackHistoryEntry = {
   notePath: string;
   category: ChallengeCategory;
   templateId: string;
+  sourceFrom: number;
+  sourceTo: number;
+  targets: string[];
   action: FeedbackHistoryAction;
   timestamp: number;
 };
@@ -30,9 +33,11 @@ type Counter = {
 
 type FeedbackStoreOptions = {
   recentLimit?: number;
+  recentShownLimit?: number;
 };
 
 const DEFAULT_RECENT_LIMIT = 10;
+const DEFAULT_RECENT_SHOWN_LIMIT = 10;
 
 function emptyCounter(): Counter {
   return { shown: 0, bad: 0 };
@@ -52,18 +57,26 @@ function pushUnique<T>(items: T[], value: T): void {
 
 export class FeedbackStore {
   private readonly recentLimit: number;
+  private readonly recentShownLimit: number;
   private readonly templateCounters: Record<string, Counter> = {};
   private readonly categoryCounters: Partial<Record<ChallengeCategory, Counter>> = {};
   private readonly recentHistory: FeedbackHistoryEntry[] = [];
+  private readonly recentShownHistory: FeedbackHistoryEntry[] = [];
 
   constructor(options: FeedbackStoreOptions = {}) {
     this.recentLimit = Math.max(1, Math.floor(options.recentLimit ?? DEFAULT_RECENT_LIMIT));
+    this.recentShownLimit = Math.max(
+      DEFAULT_RECENT_SHOWN_LIMIT,
+      Math.floor(options.recentShownLimit ?? DEFAULT_RECENT_SHOWN_LIMIT),
+    );
   }
 
   recordShown(candidate: QuestionCandidate, timestamp: number): void {
     this.getOrCreateTemplateCounter(candidate.templateId).shown += 1;
     this.getOrCreateCategoryCounter(candidate.category).shown += 1;
-    this.appendHistory(candidate, "shown", timestamp);
+    const entry = this.createHistoryEntry(candidate, "shown", timestamp);
+    this.appendRecentHistory(entry);
+    this.appendRecentShownHistory(entry);
   }
 
   recordFeedback(candidate: QuestionCandidate, action: FeedbackAction, timestamp: number): void {
@@ -72,7 +85,7 @@ export class FeedbackStore {
       this.getOrCreateCategoryCounter(candidate.category).bad += 1;
     }
 
-    this.appendHistory(candidate, action, timestamp);
+    this.appendRecentHistory(this.createHistoryEntry(candidate, action, timestamp));
   }
 
   getTemplateStats(templateId: string): FeedbackStats {
@@ -84,7 +97,12 @@ export class FeedbackStore {
   }
 
   getRecentHistory(): FeedbackHistoryEntry[] {
-    return this.recentHistory.map((entry) => ({ ...entry }));
+    return this.cloneHistory(this.recentHistory);
+  }
+
+  getRecentShownHistory(limit = DEFAULT_RECENT_SHOWN_LIMIT): FeedbackHistoryEntry[] {
+    const boundedLimit = Math.max(1, Math.floor(limit));
+    return this.cloneHistory(this.recentShownHistory.slice(-boundedLimit));
   }
 
   getNoteSuppression(notePath: string): NoteSuppression {
@@ -123,22 +141,41 @@ export class FeedbackStore {
     return (this.categoryCounters[category] ??= emptyCounter());
   }
 
-  private appendHistory(
+  private createHistoryEntry(
     candidate: QuestionCandidate,
     action: FeedbackHistoryAction,
     timestamp: number,
-  ): void {
-    this.recentHistory.push({
+  ): FeedbackHistoryEntry {
+    return {
       candidateId: candidate.id,
       notePath: candidate.source.notePath,
       category: candidate.category,
       templateId: candidate.templateId,
+      sourceFrom: candidate.source.from,
+      sourceTo: candidate.source.to,
+      targets: [...candidate.targets],
       action,
       timestamp,
-    });
+    };
+  }
+
+  private appendRecentHistory(entry: FeedbackHistoryEntry): void {
+    this.recentHistory.push(entry);
 
     if (this.recentHistory.length > this.recentLimit) {
       this.recentHistory.splice(0, this.recentHistory.length - this.recentLimit);
     }
+  }
+
+  private appendRecentShownHistory(entry: FeedbackHistoryEntry): void {
+    this.recentShownHistory.push(entry);
+
+    if (this.recentShownHistory.length > this.recentShownLimit) {
+      this.recentShownHistory.splice(0, this.recentShownHistory.length - this.recentShownLimit);
+    }
+  }
+
+  private cloneHistory(history: readonly FeedbackHistoryEntry[]): FeedbackHistoryEntry[] {
+    return history.map((entry) => ({ ...entry, targets: [...entry.targets] }));
   }
 }
