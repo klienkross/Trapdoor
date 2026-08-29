@@ -51,7 +51,7 @@ function normalizeCooldown(value: number): number {
 }
 
 export function createCopySystem(options: CopySystemOptions = {}): CopySystem {
-  const now = options.now ?? (() => 0);
+  const now = options.now ?? (() => Date.now());
   const rotationIndex: Partial<Record<CopyEvent, number>> = {};
   const lastEmittedAt: Partial<Record<CopyEvent, number>> = {};
   const cooldowns = Object.fromEntries(
