@@ -5,6 +5,7 @@ import type {
   FollowupRoute,
   NoteContext,
 } from "../../src/domain/types";
+import { detectPatterns } from "../../src/detection/pattern-detector";
 import { generateCandidates } from "../../src/generation/question-generator";
 import { questionTemplates } from "../../src/generation/templates";
 
@@ -138,6 +139,28 @@ describe("generateCandidates", () => {
     expect(firstQuestions).not.toEqual(secondQuestions);
     expect(firstQuestions.some((question) => question.includes("温度升高") || question.includes("反应速度增加") || question.includes("导致"))).toBe(true);
     expect(secondQuestions.some((question) => question.includes("缓存命中") || question.includes("磁盘读取减少") || question.includes("导致"))).toBe(true);
+  });
+
+  it.each([
+    "相比旧方案，新方案延迟更低。",
+    "A 比 B 更稳定。",
+  ])("renders comparison questions from real Task 4 detection output: %s", (text) => {
+    const detections = detectPatterns(source(text, 800)).filter(
+      (detection) => detection.category === "comparison_compression",
+    );
+    expect(detections).toHaveLength(1);
+
+    const questions = generateCandidates(detections).map((candidate) => candidate.question);
+
+    expect(questions).toHaveLength(2);
+    for (const question of questions) {
+      expect(question).not.toContain("另一个对象");
+      expect(question).not.toContain("““");
+      expect(question).not.toContain("””");
+    }
+    expect(questions.some((question) => question.includes("维度"))).toBe(true);
+    expect(questions.some((question) => question.includes("条件") && question.includes("反转"))).toBe(true);
+    expect(questions.every((question) => text.replace(/。$/, "").split(/[，,]/).some((part) => question.includes(part.trim())))).toBe(true);
   });
 
   it("uses transparent Task 5 priors without performing final ranking", () => {
