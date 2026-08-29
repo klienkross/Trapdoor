@@ -41,7 +41,8 @@ export default class TrapdoorPlugin extends Plugin {
 
   async activateChallengeView(): Promise<void> {
     const workspace = this.app.workspace;
-    let leaf = workspace.getLeavesOfType(TRAPDOOR_VIEW_TYPE)[0];
+    const existingLeaves = workspace.getLeavesOfType(TRAPDOOR_VIEW_TYPE);
+    let leaf: (typeof existingLeaves)[number] | undefined = existingLeaves[0];
 
     if (!leaf) {
       leaf = workspace.getRightLeaf(false) ?? undefined;

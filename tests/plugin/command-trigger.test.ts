@@ -9,6 +9,13 @@ import {
 import type { ChallengeViewActions } from "../../src/ui/challenge-view-renderer";
 import { WorkspaceLeaf } from "obsidian";
 
+type ViewRegistration = {
+  type: string;
+  creator: Parameters<TrapdoorPlugin["registerView"]>[1];
+};
+
+type CommandRegistration = Parameters<TrapdoorPlugin["addCommand"]>[0];
+
 function makeActions(): ChallengeViewActions {
   return {
     requestChallenge: vi.fn(),
@@ -30,11 +37,13 @@ function installDocument(): void {
 
 function makeWorkspace(existing: WorkspaceLeaf[] = []) {
   const created = new WorkspaceLeaf();
+  const setViewState = vi.spyOn(created, "setViewState").mockResolvedValue();
   return {
     getLeavesOfType: vi.fn(() => existing),
     getRightLeaf: vi.fn(() => created),
     revealLeaf: vi.fn(),
     created,
+    setViewState,
   };
 }
 
@@ -45,36 +54,43 @@ function makePlugin(actions = makeActions(), existing: WorkspaceLeaf[] = []) {
     {} as never,
     actions,
   );
-  return { plugin, workspace, actions };
+  const views: ViewRegistration[] = [];
+  const commands: CommandRegistration[] = [];
+
+  vi.spyOn(plugin, "registerView").mockImplementation((type, creator) => {
+    views.push({ type, creator });
+  });
+  vi.spyOn(plugin, "addCommand").mockImplementation((command) => {
+    commands.push(command);
+    return command;
+  });
+
+  return { plugin, workspace, actions, views, commands };
 }
 
 describe("Task 15 challenge UI registration", () => {
-  it("registers the Task 14 view type and creates ChallengeView with the shared actions", async () => {
+  it("registers the Task 14 view type and creates ChallengeView", async () => {
     installDocument();
-    const { plugin, actions } = makePlugin();
+    const { plugin, views } = makePlugin();
 
     await plugin.onload();
 
-    expect(plugin.registeredViews).toHaveLength(1);
-    const registration = plugin.registeredViews[0]!;
-    expect(registration.type).toBe(TRAPDOOR_VIEW_TYPE);
-
-    const view = registration.creator(new WorkspaceLeaf());
-    expect(view).toBeInstanceOf(ChallengeView);
-    expect((view as ChallengeView & { actions: ChallengeViewActions }).actions).toBe(actions);
+    expect(views).toHaveLength(1);
+    expect(views[0]!.type).toBe(TRAPDOOR_VIEW_TYPE);
+    expect(views[0]!.creator(new WorkspaceLeaf())).toBeInstanceOf(ChallengeView);
   });
 
   it("registers one stable assignable command without a hard-coded default hotkey", async () => {
-    const { plugin } = makePlugin();
+    const { plugin, commands } = makePlugin();
 
     await plugin.onload();
 
-    expect(plugin.commands).toHaveLength(1);
-    expect(plugin.commands[0]).toMatchObject({
+    expect(commands).toHaveLength(1);
+    expect(commands[0]).toMatchObject({
       id: "trapdoor-request-challenge",
       name: "推我下去",
     });
-    expect(plugin.commands[0]).not.toHaveProperty("hotkeys");
+    expect(commands[0]).not.toHaveProperty("hotkeys");
   });
 
   it("does not request a challenge merely by loading and registering the plugin", async () => {
@@ -102,9 +118,10 @@ describe("Task 15 challenge UI registration", () => {
     await plugin.activateChallengeView();
 
     expect(workspace.getRightLeaf).toHaveBeenCalledWith(false);
-    expect(workspace.created.viewStates).toEqual([
-      { type: TRAPDOOR_VIEW_TYPE, active: true },
-    ]);
+    expect(workspace.setViewState).toHaveBeenCalledWith({
+      type: TRAPDOOR_VIEW_TYPE,
+      active: true,
+    });
     expect(workspace.revealLeaf).toHaveBeenCalledWith(workspace.created);
   });
 
@@ -124,13 +141,13 @@ describe("Task 15 challenge UI registration", () => {
     actions.requestChallenge = vi.fn(() => {
       events.push("request");
     });
-    const { plugin, workspace } = makePlugin(actions);
+    const { plugin, workspace, commands } = makePlugin(actions);
     workspace.revealLeaf.mockImplementation(() => {
       events.push("reveal");
     });
 
     await plugin.onload();
-    await plugin.commands[0]!.callback();
+    await commands[0]!.callback();
 
     expect(events).toEqual(["reveal", "request"]);
     expect(actions.requestChallenge).toHaveBeenCalledTimes(1);
@@ -139,10 +156,10 @@ describe("Task 15 challenge UI registration", () => {
   it("button and command both call the exact same requestChallenge function", async () => {
     installDocument();
     const actions = makeActions();
-    const { plugin } = makePlugin(actions);
+    const { plugin, views, commands } = makePlugin(actions);
 
     await plugin.onload();
-    const view = plugin.registeredViews[0]!.creator(new WorkspaceLeaf()) as ChallengeView;
+    const view = views[0]!.creator(new WorkspaceLeaf()) as ChallengeView;
     await view.onOpen();
 
     const button = view.contentEl.querySelector("button") as HTMLButtonElement;
@@ -150,7 +167,7 @@ describe("Task 15 challenge UI registration", () => {
     button.click();
     expect(actions.requestChallenge).toHaveBeenCalledTimes(1);
 
-    await plugin.commands[0]!.callback();
+    await commands[0]!.callback();
     expect(actions.requestChallenge).toHaveBeenCalledTimes(2);
   });
 });
