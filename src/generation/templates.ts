@@ -32,6 +32,14 @@ function compactTargets(detection: Detection) {
   return `“${text.slice(0, 36)}${text.length > 36 ? "…" : ""}”`;
 }
 
+function comparisonSource(detection: Detection) {
+  return detection.source.text
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/^[“”"'「」『』]+|[“”"'「」『』]+$/g, "")
+    .replace(/[。！？!?；;]+$/g, "");
+}
+
 const priors: Record<ChallengeCategory, { diagnosticity: number; followupability: number }> = {
   causal_gap: { diagnosticity: 0.9, followupability: 0.95 },
   definition_boundary: { diagnosticity: 0.85, followupability: 0.85 },
@@ -105,14 +113,14 @@ export const questionTemplates: QuestionTemplate[] = [
     "comparison_compression",
     ["comparison_dimension", "boundary", "evidence"],
     (detection) =>
-      `“${target(detection, 0)}”和“${target(detection, 1, "另一个对象")}”到底在哪个维度上得到“${target(detection, 2, trigger(detection))}”这个比较？`,
+      `原文“${comparisonSource(detection)}”里的比较，到底是在什么维度上成立？换个维度，结论还成立吗？`,
   ),
   template(
     "comparison-compression-boundary",
     "comparison_compression",
     ["boundary", "comparison_dimension", "counterexample"],
     (detection) =>
-      `什么条件会让这里${trigger(detection)}表达的比较反转？具体落在${compactTargets(detection)}中的哪一项？`,
+      `对原文“${comparisonSource(detection)}”这个比较，什么条件会让它反转？`,
   ),
   template(
     "list-structure-organizing-principle",
