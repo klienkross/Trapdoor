@@ -11,17 +11,18 @@ const STRONG_COMPARISON_TERMS = [
   "更灵活",
 ] as const;
 
-const WEAK_COMPARISON_TRIGGERS = [
-  ["比", /(?<!相)比(?!如|较)/u],
-  ["较", /(?<!比)较/u],
-  ["更", /更(?!新)/u],
-] as const;
+const BARE_BI_PATTERN = /[\p{L}\p{N}]\s*比\s*(?!如|方|例|较)(?=[\p{L}\p{N}])/u;
+const BARE_JIAO_PATTERN = /(?<!比)较(?!真)(?=[\p{L}\p{N}]{2,})/u;
+const BARE_GENG_PATTERN = /更(?!新)/u;
 
 export function detectComparisonCompression(source: NoteContext): Detection | undefined {
   const triggerTerms = collectTriggerTerms(source.text, STRONG_COMPARISON_TERMS);
 
-  for (const [term, pattern] of WEAK_COMPARISON_TRIGGERS) {
-    if (pattern.test(source.text)) triggerTerms.push(term);
+  if (BARE_BI_PATTERN.test(source.text)) triggerTerms.push("比");
+  if (BARE_JIAO_PATTERN.test(source.text)) triggerTerms.push("较");
+
+  if (triggerTerms.length > 0 && BARE_GENG_PATTERN.test(source.text)) {
+    triggerTerms.push("更");
   }
 
   if (triggerTerms.length === 0) return undefined;
