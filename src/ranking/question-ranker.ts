@@ -108,10 +108,7 @@ export function scoreCentrality(candidate: QuestionCandidate): number {
 
 function recentShownHistory(store: FeedbackStore | undefined, limit: number): FeedbackHistoryEntry[] {
   if (!store) return [];
-  return store
-    .getRecentHistory()
-    .filter((entry) => entry.action === "shown")
-    .slice(-Math.max(1, Math.floor(limit)));
+  return store.getRecentShownHistory(limit);
 }
 
 function sameSource(candidate: QuestionCandidate, entry: FeedbackHistoryEntry): boolean {
