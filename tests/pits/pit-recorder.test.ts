@@ -133,6 +133,24 @@ describe("insertPit", () => {
     );
   });
 
+  it("inserts a whole-note pit at the current note end when source.to is stale", () => {
+    const markdown = "old\nnew content";
+    const item = candidate({
+      source: {
+        notePath: "notes/a.md",
+        heading: null,
+        from: 0,
+        to: 4,
+        text: "old\n",
+        scope: "note",
+      },
+    });
+
+    expect(insertPit(markdown, item)).toBe(
+      "old\nnew content\n\n> [!question] 认知坑\n> question\n",
+    );
+  });
+
   it("adds readable spacing when markdown has no trailing newline", () => {
     const markdown = "正文";
     const item = candidate({
