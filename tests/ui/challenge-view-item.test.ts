@@ -86,7 +86,7 @@ describe("ChallengeView", () => {
     await view.onOpen();
     expect(view.contentEl.textContent).toContain("推我下去");
 
-    view.setState({
+    view.renderState({
       kind: "question",
       candidate: makeCandidate(),
       debug: false,
