@@ -171,7 +171,7 @@ export function createChallengeController(options: ChallengeControllerOptions): 
       const candidate = requireCandidate();
       if (!candidate) return;
       await recordAndSave(candidate, "bad");
-      const copy = options.copySystem.next("bad_question_streak") ?? options.copySystem.next("bad_question") ?? undefined;
+      const copy = options.copySystem.next("bad_question") ?? undefined;
       await requestLocalChallenge(copy);
     },
     markUseful: async () => {
