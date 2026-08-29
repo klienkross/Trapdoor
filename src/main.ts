@@ -1,5 +1,12 @@
 import { Plugin } from "obsidian";
 
+import { createChallengeController, type ChallengeController } from "./app/challenge-controller";
+import { ObsidianActiveNoteAdapter } from "./app/obsidian-active-note-adapter";
+import { createCopySystem } from "./copy/copy-system";
+import { OpenAICompatibleProvider } from "./llm/openai-compatible-provider";
+import { loadFeedback, saveFeedback, type TextFileStore } from "./persistence/feedback-persistence";
+import { detectLegacyFeedbackOnce } from "./persistence/legacy-state";
+import { loadPluginData, type PluginDataStore } from "./persistence/settings-store";
 import {
   ChallengeView,
   TRAPDOOR_VIEW_TYPE,
@@ -12,21 +19,33 @@ export const REQUEST_CHALLENGE_COMMAND_NAME = "推我下去";
 type PluginConstructorArgs = ConstructorParameters<typeof Plugin>;
 
 export default class TrapdoorPlugin extends Plugin {
-  private readonly actions: ChallengeViewActions;
+  private actions?: ChallengeViewActions;
+  private controller?: ChallengeController;
+  private challengeView?: ChallengeView;
 
   constructor(
     app: PluginConstructorArgs[0],
     manifest: PluginConstructorArgs[1],
-    actions: ChallengeViewActions = createUnwiredChallengeViewActions(),
+    testActions?: ChallengeViewActions,
   ) {
     super(app, manifest);
-    this.actions = actions;
+    this.actions = testActions;
   }
 
   async onload(): Promise<void> {
+    if (!this.actions) {
+      await this.initializeProductionWiring();
+    }
+
+    const actions = this.requireActions();
     this.registerView(
       TRAPDOOR_VIEW_TYPE,
-      (leaf) => new ChallengeView(leaf, this.actions),
+      (leaf) => {
+        const view = new ChallengeView(leaf, actions);
+        this.challengeView = view;
+        this.controller?.renderCurrentState();
+        return view;
+      },
     );
 
     this.addCommand({
@@ -34,7 +53,7 @@ export default class TrapdoorPlugin extends Plugin {
       name: REQUEST_CHALLENGE_COMMAND_NAME,
       callback: async () => {
         await this.activateChallengeView();
-        await this.actions.requestChallenge();
+        await actions.requestChallenge();
       },
     });
   }
@@ -46,9 +65,7 @@ export default class TrapdoorPlugin extends Plugin {
 
     if (!leaf) {
       leaf = workspace.getRightLeaf(false) ?? undefined;
-      if (!leaf) {
-        return;
-      }
+      if (!leaf) return;
 
       await leaf.setViewState({
         type: TRAPDOOR_VIEW_TYPE,
@@ -58,22 +75,60 @@ export default class TrapdoorPlugin extends Plugin {
 
     await workspace.revealLeaf(leaf);
   }
-}
 
-function createUnwiredChallengeViewActions(): ChallengeViewActions {
-  const notWired = async (): Promise<never> => {
-    throw new Error("Challenge orchestration is not wired until Task 16");
-  };
+  private async initializeProductionWiring(): Promise<void> {
+    const dataStore: PluginDataStore = {
+      loadData: () => this.loadData(),
+      saveData: (data) => this.saveData(data),
+    };
+    const files = this.createFeedbackFileStore();
+    const pluginData = await loadPluginData(dataStore);
+    const feedbackStore = await loadFeedback(files);
+    const legacy = await detectLegacyFeedbackOnce(dataStore, files);
+    const copySystem = createCopySystem();
+    const provider = new OpenAICompatibleProvider({
+      endpoint: pluginData.settings.endpoint,
+      model: pluginData.settings.model,
+      apiKey: pluginData.settings.apiKey,
+    });
 
-  return {
-    requestChallenge: notWired,
-    continueDrill: notWired,
-    markUseful: notWired,
-    markCannotAnswer: notWired,
-    markBad: notWired,
-    replace: notWired,
-    submitDrillAnswer: notWired,
-    exitDrill: notWired,
-    returnToIdle: notWired,
-  };
+    this.controller = createChallengeController({
+      activeNote: new ObsidianActiveNoteAdapter(this.app),
+      feedbackStore,
+      copySystem,
+      settings: pluginData.settings,
+      provider,
+      providerReady: () => Boolean(pluginData.settings.endpoint.trim() && pluginData.settings.model.trim()),
+      persistFeedback: () => saveFeedback(files, feedbackStore),
+      renderState: (state) => this.challengeView?.renderState(state),
+      initialCopy: legacy.legacyStateFound
+        ? copySystem.next("legacy_state_found") ?? undefined
+        : undefined,
+    });
+    this.actions = this.controller.actions;
+  }
+
+  private createFeedbackFileStore(): TextFileStore {
+    const adapter = this.app.vault.adapter;
+    const pluginDir = this.manifest.dir ?? `.obsidian/plugins/${this.manifest.id}`;
+    const resolvePath = (path: string): string => `${pluginDir}/${path}`;
+
+    return {
+      read: async (path) => {
+        const resolved = resolvePath(path);
+        if (!(await adapter.exists(resolved))) return null;
+        return adapter.read(resolved);
+      },
+      write: async (path, contents) => {
+        await adapter.write(resolvePath(path), contents);
+      },
+    };
+  }
+
+  private requireActions(): ChallengeViewActions {
+    if (!this.actions) {
+      throw new Error("Trapdoor challenge actions were not initialized.");
+    }
+    return this.actions;
+  }
 }
