@@ -208,4 +208,70 @@ describe("Task 16 controller behavioral boundaries", () => {
 
     expect(JSON.stringify(controller.getState().viewState)).not.toContain(settings.apiKey);
   });
+
+  it.each(["markUseful", "markCannotAnswer"] as const)("does not persist %s feedback or write a pit after switching from candidate note A to active note B", async (action) => {
+    let active = { markdown: "# A\nX 导致 Y。", cursorOffset: 5, notePath: "A.md" };
+    const adapter: ActiveNoteAdapter = {
+      getActiveNote: () => active,
+      replaceMarkdown: (markdown) => { active = { ...active, markdown }; },
+    };
+    const candidate = makeCandidate({
+      source: { notePath: "A.md", heading: "A", from: 0, to: active.markdown.length, text: active.markdown, scope: "section" },
+    });
+    const feedbackStore = new FeedbackStore();
+    const persistFeedback = vi.fn(async () => undefined);
+    const controller = createChallengeController({
+      activeNote: adapter,
+      feedbackStore,
+      copySystem: silentCopy(),
+      settings,
+      provider: provider(),
+      persistFeedback,
+      renderState: () => undefined,
+      selectChallenge: () => ({ status: "question", candidate }),
+    });
+
+    await controller.actions.requestChallenge();
+    persistFeedback.mockClear();
+    active = { markdown: "# B\n这里是 B。", cursorOffset: 5, notePath: "B.md" };
+
+    await controller.actions[action]();
+
+    expect(active.markdown).toBe("# B\n这里是 B。");
+    expect(active.markdown).not.toContain("认知坑");
+    const forbiddenAction = action === "markUseful" ? "useful" : "cannot_answer";
+    expect(feedbackStore.getRecentHistory().some((entry) => entry.action === forbiddenAction)).toBe(false);
+    expect(persistFeedback).not.toHaveBeenCalled();
+  });
+
+  it("does not start a drill with candidate A and active note B context after switching notes", async () => {
+    let active = { markdown: "# A\nX 导致 Y。", cursorOffset: 5, notePath: "A.md" };
+    const adapter: ActiveNoteAdapter = {
+      getActiveNote: () => active,
+      replaceMarkdown: (markdown) => { active = { ...active, markdown }; },
+    };
+    const candidate = makeCandidate({
+      source: { notePath: "A.md", heading: "A", from: 0, to: active.markdown.length, text: active.markdown, scope: "section" },
+    });
+    const fakeProvider = provider();
+    const controller = createChallengeController({
+      activeNote: adapter,
+      feedbackStore: new FeedbackStore(),
+      copySystem: silentCopy(),
+      settings,
+      provider: fakeProvider,
+      persistFeedback: async () => undefined,
+      renderState: () => undefined,
+      selectChallenge: () => ({ status: "question", candidate }),
+    });
+
+    await controller.actions.requestChallenge();
+    active = { markdown: "# B\nB 的上下文。", cursorOffset: 5, notePath: "B.md" };
+
+    await controller.actions.continueDrill();
+
+    expect(controller.getState().viewState.kind).toBe("question");
+    expect(controller.getState().drillState).toBeUndefined();
+    expect(fakeProvider.calls).toHaveLength(0);
+  });
 });
