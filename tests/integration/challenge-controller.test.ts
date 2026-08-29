@@ -126,7 +126,7 @@ describe("Task 16 end-to-end controller", () => {
   it("crosses the network boundary only after drill answer, handles one escalation, and keeps sentinels out of view state", async () => {
     const provider = makeProvider(["[[NEED_WHOLE_NOTE]]", "你能指出这个机制的边界吗？", "还有哪个反例会推翻它？"]);
     const c = candidate();
-    const h = harness("# 机制\nX 导致 Y。\n\n# 附录\nwhole-note secret", provider, { selectChallenge: () => ({ status: "question", candidate: c }) });
+    const h = harness("# 附录\nwhole-note secret\n\n# 机制\nX 导致 Y。", provider, { selectChallenge: () => ({ status: "question", candidate: c }) });
     await h.controller.actions.requestChallenge();
     await h.controller.actions.continueDrill();
     expect(provider.calls).toHaveLength(0);
