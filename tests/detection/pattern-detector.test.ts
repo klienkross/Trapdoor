@@ -50,6 +50,13 @@ describe("detectPatterns", () => {
     expect(detection?.targets.length).toBeGreaterThan(0);
   });
 
+  it.each(["但是这个方案还需要验证。", "我们需要确认是否存在缓存。"])(
+    "does not treat 是 inside another word as a definition trigger: %s",
+    (text) => {
+      expect(findCategory(text, "definition_boundary")).toBeUndefined();
+    },
+  );
+
   it.each([
     ["这个实验结果说明温度不是唯一变量。", "说明"],
     ["数据表明误差随规模增加。", "表明"],
@@ -72,6 +79,14 @@ describe("detectPatterns", () => {
 
     expect(detection?.confidence).toBeGreaterThanOrEqual(0.7);
     expect(detection?.triggerTerms).toEqual(expect.arrayContaining(triggers));
+  });
+
+  it.each([
+    "比如这个例子只用于说明接口。",
+    "更新缓存之后重新读取。",
+    "这个实现比较复杂，需要拆分。",
+  ])("does not treat weak comparison substrings as explicit comparison: %s", (text) => {
+    expect(findCategory(text, "comparison_compression")).toBeUndefined();
   });
 
   it("detects Markdown bullet-list structure", () => {
