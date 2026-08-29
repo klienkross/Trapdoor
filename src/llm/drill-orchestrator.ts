@@ -84,7 +84,11 @@ export function createDrillOrchestrator({ provider }: DrillOrchestratorOptions) 
         ...state.turns,
         { role: "user", content: userAnswer },
       ];
-      const messages = buildMessages(state, pendingTurns, false);
+      const messages = buildMessages(
+        state,
+        pendingTurns,
+        state.escalatedToWholeNote,
+      );
       const output = await provider.complete(messages, signal);
 
       return transitionFromOutput(state, pendingTurns, output, false);
