@@ -155,6 +155,51 @@ describe("FeedbackStore", () => {
     expect(store.getNoteSuppression("notes/a.md")).toEqual({ categories: [], templateIds: [], candidateIds: [] });
   });
 
+  it("expires note-local suppression when its bad entry leaves recent history", () => {
+    const store = new FeedbackStore({ recentLimit: 2 });
+    const rejected = candidate("rejected", "notes/a.md");
+
+    store.recordFeedback(rejected, "bad", 10);
+    store.recordShown(candidate("other", "notes/a.md", "evidence_jump", "evidence-jump-01"), 20);
+    store.recordFeedback(candidate("another", "notes/a.md", "definition_boundary", "definition-boundary-01"), "replace", 30);
+
+    expect(store.getRecentHistory().map((entry) => entry.timestamp)).toEqual([20, 30]);
+    expect(store.isSuppressedForNote("notes/a.md", rejected)).toBe(false);
+    expect(store.getNoteSuppression("notes/a.md")).toEqual({ categories: [], templateIds: [], candidateIds: [] });
+  });
+
+  it("keeps suppression while another matching bad remains in recent history", () => {
+    const store = new FeedbackStore({ recentLimit: 3 });
+    const rejected = candidate("rejected", "notes/a.md");
+
+    store.recordFeedback(rejected, "bad", 10);
+    store.recordFeedback(rejected, "bad", 20);
+    store.recordShown(candidate("other", "notes/a.md", "evidence_jump", "evidence-jump-01"), 30);
+    store.recordShown(candidate("another", "notes/a.md", "definition_boundary", "definition-boundary-01"), 40);
+
+    expect(store.getRecentHistory().map((entry) => entry.timestamp)).toEqual([20, 30, 40]);
+    expect(store.isSuppressedForNote("notes/a.md", rejected)).toBe(true);
+    expect(store.getNoteSuppression("notes/a.md")).toEqual({
+      categories: ["causal_gap"],
+      templateIds: ["causal-gap-01"],
+      candidateIds: ["rejected"],
+    });
+  });
+
+  it("keeps recent suppression isolated by note after unrelated history eviction", () => {
+    const store = new FeedbackStore({ recentLimit: 3 });
+    const rejectedA = candidate("same", "notes/a.md");
+    const rejectedB = candidate("same", "notes/b.md");
+
+    store.recordFeedback(rejectedA, "bad", 10);
+    store.recordFeedback(rejectedB, "bad", 20);
+    store.recordShown(candidate("other", "notes/a.md", "evidence_jump", "evidence-jump-01"), 30);
+    store.recordShown(candidate("another", "notes/a.md", "definition_boundary", "definition-boundary-01"), 40);
+
+    expect(store.isSuppressedForNote("notes/a.md", rejectedA)).toBe(false);
+    expect(store.isSuppressedForNote("notes/b.md", rejectedB)).toBe(true);
+  });
+
   it("does not rank candidates or mutate their scores", () => {
     const store = new FeedbackStore();
     const value = candidate("one");
