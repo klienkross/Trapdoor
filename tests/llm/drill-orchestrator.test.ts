@@ -194,6 +194,41 @@ describe("Socratic drill orchestrator", () => {
     if (result.status === "active") expect(result.state.escalatedToWholeNote).toBe(true);
   });
 
+  it("keeps whole-note context in later answers after escalation", async () => {
+    const provider = fakeProvider(
+      "[[NEED_WHOLE_NOTE]]",
+      "整篇里哪个事实能区分这两个解释？",
+      "这个事实在哪个边界条件下会失效？",
+    );
+    const orchestrator = createDrillOrchestrator({ provider });
+    const initial = orchestrator.start(candidate(), "SECTION CONTEXT", "WHOLE NOTE CONTEXT");
+
+    const need = await orchestrator.answer(initial, "需要更多上下文。");
+    if (need.status !== "needs_whole_note") throw new Error("expected escalation request");
+    expect(provider.complete).toHaveBeenCalledTimes(1);
+
+    const escalated = await orchestrator.continueWithWholeNote(need.state);
+    if (escalated.status !== "active") throw new Error("expected active result");
+    expect(escalated.state.escalatedToWholeNote).toBe(true);
+    expect(provider.complete).toHaveBeenCalledTimes(2);
+
+    await orchestrator.answer(escalated.state, "这个事实只在缓存仍由同一版本读取时成立。");
+
+    expect(provider.complete).toHaveBeenCalledTimes(3);
+    const messages = provider.complete.mock.calls[2][0] as readonly LLMMessage[];
+    const joined = messages.map((message) => message.content).join("\n");
+    expect(joined).toContain("SECTION CONTEXT");
+    expect(joined).toContain("WHOLE NOTE CONTEXT");
+    expect(messages).toContainEqual({
+      role: "assistant",
+      content: "整篇里哪个事实能区分这两个解释？",
+    });
+    expect(messages.at(-1)).toEqual({
+      role: "user",
+      content: "这个事实只在缓存仍由同一版本读取时成立。",
+    });
+  });
+
   it("forwards AbortSignal unchanged during explicit escalation", async () => {
     const provider = fakeProvider("[[NEED_WHOLE_NOTE]]", "整篇里还有哪个反例会推翻这个解释？");
     const orchestrator = createDrillOrchestrator({ provider });
