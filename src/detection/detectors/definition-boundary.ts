@@ -2,12 +2,28 @@ import type { Detection, NoteContext } from "../../domain/types";
 import { collectTriggerTerms, makeDetection } from "./shared";
 
 const STRONG_DEFINITION_TERMS = ["指的是", "定义为", "本质上", "可以理解为", "意味着"] as const;
-const STANDALONE_IS_PATTERN = /(?<!但)是(?!否)/u;
+const CLAUSE_BOUNDARY = /[。！？!?；;，,\n]/;
+
+function hasCopularIs(text: string): boolean {
+  for (let index = text.indexOf("是"); index >= 0; index = text.indexOf("是", index + 1)) {
+    if (text[index + 1] === "否") continue;
+
+    const before = text.slice(0, index).split(CLAUSE_BOUNDARY).at(-1)?.trim() ?? "";
+    const after = text.slice(index + 1).split(CLAUSE_BOUNDARY)[0]?.trim() ?? "";
+
+    if (before.length < 2 || after.length === 0) continue;
+    if (before.endsWith("总")) continue;
+
+    return true;
+  }
+
+  return false;
+}
 
 export function detectDefinitionBoundary(source: NoteContext): Detection | undefined {
   const triggerTerms = collectTriggerTerms(source.text, STRONG_DEFINITION_TERMS);
 
-  if (triggerTerms.length === 0 && STANDALONE_IS_PATTERN.test(source.text)) {
+  if (triggerTerms.length === 0 && hasCopularIs(source.text)) {
     triggerTerms.push("是");
   }
 
