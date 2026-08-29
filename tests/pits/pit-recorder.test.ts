@@ -19,7 +19,6 @@ function candidate(overrides: Partial<QuestionCandidate> = {}): QuestionCandidat
     category: "causal_gap",
     templateId: "causal-gap-01",
     question: "question",
-    source,
     targets: ["X", "Y"],
     triggerTerms: ["导致"],
     scores: {
