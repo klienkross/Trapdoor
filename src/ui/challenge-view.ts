@@ -34,7 +34,7 @@ export class ChallengeView extends ItemView {
     this.contentEl.replaceChildren();
   }
 
-  setState(state: ChallengeViewState): void {
+  renderState(state: ChallengeViewState): void {
     this.state = state;
     this.render();
   }
