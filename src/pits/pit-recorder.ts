@@ -9,6 +9,10 @@ export function buildPitCallout(candidate: QuestionCandidate): string {
 }
 
 function resolveInsertionOffset(markdown: string, candidate: QuestionCandidate): number {
+  if (candidate.source.scope === "note") {
+    return markdown.length;
+  }
+
   const raw = candidate.source.to;
   const clamped = Math.min(Math.max(raw, 0), markdown.length);
 
