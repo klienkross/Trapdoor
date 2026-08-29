@@ -55,7 +55,6 @@ export class FeedbackStore {
   private readonly templateCounters: Record<string, Counter> = {};
   private readonly categoryCounters: Partial<Record<ChallengeCategory, Counter>> = {};
   private readonly recentHistory: FeedbackHistoryEntry[] = [];
-  private readonly noteSuppression: Record<string, NoteSuppression> = {};
 
   constructor(options: FeedbackStoreOptions = {}) {
     this.recentLimit = Math.max(1, Math.floor(options.recentLimit ?? DEFAULT_RECENT_LIMIT));
@@ -71,7 +70,6 @@ export class FeedbackStore {
     if (action === "bad") {
       this.getOrCreateTemplateCounter(candidate.templateId).bad += 1;
       this.getOrCreateCategoryCounter(candidate.category).bad += 1;
-      this.suppressForNote(candidate);
     }
 
     this.appendHistory(candidate, action, timestamp);
@@ -90,19 +88,25 @@ export class FeedbackStore {
   }
 
   getNoteSuppression(notePath: string): NoteSuppression {
-    const suppression = this.noteSuppression[notePath];
-    if (!suppression) return { categories: [], templateIds: [], candidateIds: [] };
-
-    return {
-      categories: [...suppression.categories],
-      templateIds: [...suppression.templateIds],
-      candidateIds: [...suppression.candidateIds],
+    const suppression: NoteSuppression = {
+      categories: [],
+      templateIds: [],
+      candidateIds: [],
     };
+
+    for (const entry of this.recentHistory) {
+      if (entry.action !== "bad" || entry.notePath !== notePath) continue;
+
+      pushUnique(suppression.categories, entry.category);
+      pushUnique(suppression.templateIds, entry.templateId);
+      pushUnique(suppression.candidateIds, entry.candidateId);
+    }
+
+    return suppression;
   }
 
   isSuppressedForNote(notePath: string, candidate: QuestionCandidate): boolean {
-    const suppression = this.noteSuppression[notePath];
-    if (!suppression) return false;
+    const suppression = this.getNoteSuppression(notePath);
 
     return (
       suppression.categories.includes(candidate.category) ||
@@ -136,18 +140,5 @@ export class FeedbackStore {
     if (this.recentHistory.length > this.recentLimit) {
       this.recentHistory.splice(0, this.recentHistory.length - this.recentLimit);
     }
-  }
-
-  private suppressForNote(candidate: QuestionCandidate): void {
-    const notePath = candidate.source.notePath;
-    const suppression = (this.noteSuppression[notePath] ??= {
-      categories: [],
-      templateIds: [],
-      candidateIds: [],
-    });
-
-    pushUnique(suppression.categories, candidate.category);
-    pushUnique(suppression.templateIds, candidate.templateId);
-    pushUnique(suppression.candidateIds, candidate.id);
   }
 }
