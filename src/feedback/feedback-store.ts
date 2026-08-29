@@ -13,6 +13,9 @@ export type FeedbackHistoryEntry = {
   notePath: string;
   category: ChallengeCategory;
   templateId: string;
+  sourceFrom: number;
+  sourceTo: number;
+  targets: string[];
   action: FeedbackHistoryAction;
   timestamp: number;
 };
@@ -84,7 +87,7 @@ export class FeedbackStore {
   }
 
   getRecentHistory(): FeedbackHistoryEntry[] {
-    return this.recentHistory.map((entry) => ({ ...entry }));
+    return this.recentHistory.map((entry) => ({ ...entry, targets: [...entry.targets] }));
   }
 
   getNoteSuppression(notePath: string): NoteSuppression {
@@ -133,6 +136,9 @@ export class FeedbackStore {
       notePath: candidate.source.notePath,
       category: candidate.category,
       templateId: candidate.templateId,
+      sourceFrom: candidate.source.from,
+      sourceTo: candidate.source.to,
+      targets: [...candidate.targets],
       action,
       timestamp,
     });
