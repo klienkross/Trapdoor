@@ -101,7 +101,7 @@ describe("rankCandidates", () => {
 
   it("lowers novelty as the shown frequency of the category rises", () => {
     const store = new FeedbackStore({ recentLimit: 20 });
-    const target = candidate({ id: "target" });
+    const target = candidate({ id: "target", source: { ...candidate().source, notePath: "notes/fresh.md" } });
     store.recordShown(candidate({ id: "old-1" }), 1);
     store.recordShown(candidate({ id: "old-2" }), 2);
     store.recordShown(variant("old-3", "evidence_jump", "evidence-jump-01"), 3);
@@ -115,7 +115,7 @@ describe("rankCandidates", () => {
   it("does not count feedback entries as additional shown questions for novelty", () => {
     const store = new FeedbackStore({ recentLimit: 20 });
     const shown = candidate({ id: "shown-once" });
-    const target = candidate({ id: "target", source: { ...shown.source, from: 100, to: 120 } });
+    const target = candidate({ id: "target", source: { ...shown.source, notePath: "notes/fresh.md", from: 100, to: 120 } });
     store.recordShown(shown, 1);
     store.recordFeedback(shown, "bad", 2);
     store.recordFeedback(shown, "replace", 3);
