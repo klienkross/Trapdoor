@@ -88,9 +88,8 @@ describe("Task 16 production Obsidian wiring", () => {
     await view.onOpen();
     const button = view.contentEl.querySelector("button") as HTMLButtonElement;
     expect(button.textContent).toBe("推我下去");
-    button.click();
-    await Promise.resolve();
-    await Promise.resolve();
+
+    await plugin.commands[0]!.callback();
 
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(view.contentEl.textContent).toContain("来自：当前小节");
