@@ -1,0 +1,53 @@
+.trapdoor-view {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.75rem;
+}
+
+.trapdoor-primary-action {
+  width: 100%;
+  min-height: 3rem;
+  font-weight: 600;
+}
+
+.trapdoor-question-text {
+  font-size: 1.05em;
+  line-height: 1.5;
+}
+
+.trapdoor-question-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.trapdoor-drill-conversation {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.trapdoor-answer-label,
+.trapdoor-answer {
+  display: block;
+  width: 100%;
+}
+
+.trapdoor-answer {
+  min-height: 5rem;
+  resize: vertical;
+}
+
+.trapdoor-debug {
+  overflow-x: auto;
+  white-space: pre-wrap;
+  font-size: var(--font-ui-smaller);
+}
+
+.trapdoor-source,
+.trapdoor-context,
+.trapdoor-location {
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+}
