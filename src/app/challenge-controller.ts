@@ -115,6 +115,18 @@ export function createChallengeController(options: ChallengeControllerOptions): 
 
   const requireCandidate = (): QuestionCandidate | undefined => state.currentCandidate;
 
+  const requireMatchingActiveNote = (candidate: QuestionCandidate): ActiveNote | undefined => {
+    const active = options.activeNote.getActiveNote();
+    if (active?.notePath === candidate.source.notePath) return active;
+    publish({
+      kind: "question",
+      candidate,
+      copy: "这道题来自另一篇笔记，请切回原笔记再继续。",
+      debug: options.settings.debug,
+    });
+    return undefined;
+  };
+
   const recordAndSave = async (candidate: QuestionCandidate, action: "bad" | "useful" | "cannot_answer" | "replace"): Promise<void> => {
     options.feedbackStore.recordFeedback(candidate, action, now());
     await saveFeedback();
@@ -123,12 +135,9 @@ export function createChallengeController(options: ChallengeControllerOptions): 
   const savePit = async (action: "useful" | "cannot_answer"): Promise<void> => {
     const candidate = requireCandidate();
     if (!candidate) return;
+    const active = requireMatchingActiveNote(candidate);
+    if (!active) return;
     await recordAndSave(candidate, action);
-    const active = options.activeNote.getActiveNote();
-    if (!active) {
-      publish({ kind: "not_suitable", copy: "当前 Markdown 笔记已不可用。" });
-      return;
-    }
     const nextMarkdown = insertPit(active.markdown, candidate);
     await options.activeNote.replaceMarkdown(nextMarkdown);
     publish({
@@ -183,12 +192,12 @@ export function createChallengeController(options: ChallengeControllerOptions): 
     continueDrill: async () => {
       const candidate = requireCandidate();
       if (!candidate) return;
+      const active = requireMatchingActiveNote(candidate);
+      if (!active) return;
       if (options.providerReady && !options.providerReady()) {
         publish({ kind: "question", candidate, copy: "先配置 endpoint 和 model 再继续拷打。", debug: options.settings.debug });
         return;
       }
-      const active = options.activeNote.getActiveNote();
-      if (!active) return;
       const sectionText = extractSection(active.markdown, active.cursorOffset, active.notePath).text;
       const wholeNoteText = extractWholeNote(active.markdown, active.notePath).text;
       const drillState = drill.start(candidate, sectionText, wholeNoteText);
