@@ -12,7 +12,7 @@ function hasCopularIs(text: string): boolean {
     const after = text.slice(index + 1).split(CLAUSE_BOUNDARY)[0]?.trim() ?? "";
 
     if (before.length < 2 || after.length === 0) continue;
-    if (before.endsWith("总")) continue;
+    if (before.endsWith("总") || before.endsWith("还")) continue;
 
     return true;
   }
