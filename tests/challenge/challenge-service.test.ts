@@ -7,7 +7,11 @@ import {
   type ChallengeServiceDependencies,
 } from "../../src/challenge/challenge-service";
 
-function context(scope: "section" | "note", text = "X 导致 Y。", heading = scope === "section" ? "当前" : null): NoteContext {
+function context(
+  scope: "section" | "note",
+  text = scope === "section" ? "X 导致 Y。" : "Whole note: X 导致 Y。",
+  heading = scope === "section" ? "当前" : null,
+): NoteContext {
   return {
     notePath: "notes/a.md",
     heading,
@@ -81,7 +85,9 @@ function controlledPipeline(options: {
         if (source.scope === "note" && options.noteCandidates === false) return [];
         return [detection(source)];
       },
-      generateCandidates: (detections) => detections.map((item) => item.source.scope === "section" ? sectionCandidate : noteCandidate),
+      generateCandidates: (detections) => detections.map((item) =>
+        item.source.scope === "section" ? sectionCandidate : noteCandidate,
+      ),
       rankCandidates: (candidates) => candidates.map((item) => ({
         ...item,
         scores: {
@@ -128,9 +134,8 @@ describe("requestChallenge", () => {
     }
   });
 
-  it("returns the top viable section candidate without consulting whole-note fallback", () => {
+  it("returns a viable section question without consulting a higher-scoring whole note", () => {
     const { dependencies, wholeNote } = controlledPipeline({ sectionFinal: 0.36, noteFinal: 0.99 });
-
     const result = requestChallenge(input, dependencies);
 
     expect(result.status).toBe("question");
@@ -138,9 +143,8 @@ describe("requestChallenge", () => {
     expect(wholeNote).not.toHaveBeenCalled();
   });
 
-  it("falls back to the whole note when the section produces no candidate", () => {
+  it("falls back when section detection/generation produces no candidate", () => {
     const { dependencies, wholeNote } = controlledPipeline({ sectionCandidates: false, noteFinal: 0.7 });
-
     const result = requestChallenge(input, dependencies);
 
     expect(wholeNote).toHaveBeenCalledTimes(1);
@@ -148,9 +152,8 @@ describe("requestChallenge", () => {
     if (result.status === "question") expect(result.candidate.source.scope).toBe("note");
   });
 
-  it("falls back to the whole note when every section candidate is below 0.35", () => {
+  it("falls back when every section candidate is below 0.35", () => {
     const { dependencies, wholeNote } = controlledPipeline({ sectionFinal: 0.349, noteFinal: 0.7 });
-
     const result = requestChallenge(input, dependencies);
 
     expect(wholeNote).toHaveBeenCalledTimes(1);
@@ -158,17 +161,13 @@ describe("requestChallenge", () => {
     if (result.status === "question") expect(result.candidate.id).toBe("note-candidate");
   });
 
-  it("returns none when both scopes are suitable but neither has a viable candidate", () => {
+  it("returns none when both suitable scopes lack a viable candidate", () => {
     const { dependencies } = controlledPipeline({ sectionFinal: 0.2, noteFinal: 0.349 });
-
-    const result = requestChallenge(input, dependencies);
-
-    expect(result.status).toBe("none");
+    expect(requestChallenge(input, dependencies).status).toBe("none");
   });
 
-  it("returns not_suitable immediately when the current section should be skipped", () => {
+  it("returns not_suitable for a skipped section and never bypasses it with whole-note fallback", () => {
     const { dependencies, wholeNote } = controlledPipeline({ sectionSkip: true, noteFinal: 0.9 });
-
     const result = requestChallenge(input, dependencies);
 
     expect(result.status).toBe("not_suitable");
@@ -178,7 +177,6 @@ describe("requestChallenge", () => {
 
   it("treats exactly 0.35 as viable", () => {
     const { dependencies, wholeNote } = controlledPipeline({ sectionFinal: 0.35 });
-
     const result = requestChallenge(input, dependencies);
 
     expect(result.status).toBe("question");
@@ -188,13 +186,11 @@ describe("requestChallenge", () => {
 
   it("treats a score below 0.35 as non-viable", () => {
     const { dependencies } = controlledPipeline({ sectionFinal: 0.349999, noteCandidates: false });
-
     expect(requestChallenge(input, dependencies).status).toBe("none");
   });
 
-  it("passes the context exploration score into the ranker", () => {
-    const section = context("section");
-    const rankCandidates = vi.fn((items: readonly QuestionCandidate[], options?: { explorationScore?: number }) =>
+  it("passes explorationScore to ranking so a high-but-not-skipped score can cross below viability", () => {
+    const rankCandidates = vi.fn((items: readonly QuestionCandidate[]) =>
       items.map((item) => ({ ...item, scores: { ...item.scores, final: 0.34 } })),
     );
     const { dependencies } = controlledPipeline({ noteCandidates: false });
@@ -207,14 +203,18 @@ describe("requestChallenge", () => {
     expect(result.status).toBe("none");
   });
 
-  it("uses the supplied FeedbackStore in ranking so feedback can change selection", () => {
-    const section = context("section", "## 当前\nX 导致 Y。另一个原因导致 Z。", "当前");
+  it("uses the supplied FeedbackStore so recent feedback can change selection", () => {
+    const section = context("section", "## 当前\nX 导致 Y。证据表明 Z。", "当前");
     const first = candidate(section, "a");
-    const second = candidate({ ...section, from: 50, to: 70 }, "b");
     first.templateId = "causal-gap-01";
-    second.templateId = "causal-gap-02";
     first.scores.structure = 0.95;
-    second.scores.structure = 0.8;
+
+    const second = candidate({ ...section, from: 50, to: 70 }, "b");
+    second.category = "evidence_jump";
+    second.templateId = "evidence-jump-01";
+    second.scores.structure = 0.9;
+    second.followupRoutes = ["evidence"];
+
     const store = new FeedbackStore();
     const dependencies: Partial<ChallengeServiceDependencies> = {
       extractSection: () => section,
@@ -236,10 +236,9 @@ describe("requestChallenge", () => {
     if (after.status === "question") expect(after.candidate.id).not.toBe(before.candidate.id);
   });
 
-  it("does not write shown or feedback side effects", () => {
+  it("does not record shown or any feedback side effect", () => {
     const store = new FeedbackStore();
     const { dependencies } = controlledPipeline({ sectionFinal: 0.7 });
-
     requestChallenge({ ...input, feedbackStore: store }, dependencies);
 
     expect(store.getRecentHistory()).toEqual([]);
@@ -250,13 +249,11 @@ describe("requestChallenge", () => {
     const store = new FeedbackStore();
     const first = requestChallenge({ ...input, feedbackStore: store });
     const second = requestChallenge({ ...input, feedbackStore: store });
-
     expect(second).toEqual(first);
   });
 
-  it("returns whole-note not_suitable if fallback reaches a note that should be skipped", () => {
+  it("returns whole-note not_suitable when fallback reaches a skipped whole note", () => {
     const { dependencies } = controlledPipeline({ sectionCandidates: false, noteSkip: true });
-
     const result = requestChallenge(input, dependencies);
 
     expect(result.status).toBe("not_suitable");
