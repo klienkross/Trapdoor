@@ -156,6 +156,19 @@ describe("event-driven copy system", () => {
     expect(copy.next("bad_question_streak")).toBeNull();
   });
 
+  it("uses advancing real time when no clock is injected", () => {
+    const dateNow = vi.spyOn(Date, "now").mockReturnValue(1_000);
+    const copy = createCopySystem();
+
+    expect(copy.next("bad_question_streak")).toBe(COPY_TABLE.bad_question_streak[0]);
+    dateNow.mockReturnValue(30_999);
+    expect(copy.next("bad_question_streak")).toBeNull();
+    dateNow.mockReturnValue(31_000);
+    expect(copy.next("bad_question_streak")).toBe(COPY_TABLE.bad_question_streak[1]);
+
+    dateNow.mockRestore();
+  });
+
   it("treats legacy_state_found as one-shot by default", () => {
     let now = 0;
     const copy = createCopySystem({ now: () => now });
