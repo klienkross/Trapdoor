@@ -174,7 +174,7 @@ describe("rankCandidates", () => {
       source: { ...candidate().source, from: 200, to: 220 },
       scores: { structure: 0.3, diagnosticity: 0.3, followupability: 0.3 } as QuestionCandidate["scores"],
     });
-    const ranked = rankCandidates([weak, strong], { feedbackStore: store });
+    const ranked = rankCandidates([weak, strong], { feedbackStore: store, recentShownLimit: 1 });
 
     expect(ranked.find((item) => item.id === "strong")!.scores.dislikePenalty).toBeGreaterThan(0);
     expect(ranked.map((item) => item.id)[0]).toBe("strong");
