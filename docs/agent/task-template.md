@@ -58,6 +58,18 @@ Omit fields that genuinely do not apply. Do not add a long inventory of untouche
 
 If the task exceeds its budget, explain which task-local information cannot be replaced by repo docs, source, tests, Git, or CI. Do not solve the problem by blind truncation.
 
+## Local helper
+
+The repo-local helper reads canonical paths and budgets from `docs/agent/project-state.json`:
+
+```bash
+npm run agent:handoff -- render path/to/task.json
+npm run agent:handoff -- check path/to/prompt.txt bugfix
+npm run agent:handoff -- check path/to/prompt.txt feature
+```
+
+`render` accepts task-local JSON fields such as `worker`, `base`, `task`, `read`, `context`, `acceptance`, `forbid`, and `report`. It emits a bounded prompt and refuses output that fails the configured mechanical checks. `check` reports obvious prompt bloat such as budget overflow, repeated task-to-SHA history, multiple full SHAs, or copied Actions run IDs. It does not truncate or semantically summarize prompts.
+
 ## Migration example — sidebar UX polish
 
 The following **before** is an exact excerpt from a recent sidebar UX polish handoff. It demonstrates the old pattern: baseline SHA/history context, stable TDD instruction, renderer structure, and UI inventory were carried in the assignment itself.
