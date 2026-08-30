@@ -31,3 +31,13 @@ jobs:
 
       - name: Package smoke check
         run: npm run package
+
+      - name: Upload installable plugin
+        uses: actions/upload-artifact@v4
+        with:
+          name: trapdoor-plugin
+          path: |
+            manifest.json
+            main.js
+            styles.css
+          if-no-files-found: error
