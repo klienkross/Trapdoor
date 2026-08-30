@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ChallengeCategory, NoteContext } from "../../src/domain/types";
 import { detectPatterns } from "../../src/detection/pattern-detector";
+import { generateCandidates } from "../../src/generation/question-generator";
 
 function context(text: string): NoteContext {
   return {
@@ -15,6 +16,10 @@ function context(text: string): NoteContext {
 
 function findCategory(text: string, category: ChallengeCategory) {
   return detectPatterns(context(text)).find((item) => item.category === category);
+}
+
+function candidates(text: string) {
+  return generateCandidates(detectPatterns(context(text)));
 }
 
 describe("detectPatterns", () => {
@@ -171,5 +176,93 @@ describe("detectPatterns", () => {
     for (const term of detection?.triggerTerms ?? []) {
       expect(source.text).toContain(term);
     }
+  });
+
+  it("does not extract challenge patterns from fenced Dataview or ordinary code", () => {
+    const text = [
+      "```dataview",
+      "LIST",
+      "- A 比 B 更稳定",
+      "- 因为查询命中所以显示结果",
+      "```",
+      "```ts",
+      "const reason = '因为缓存失效所以重算';",
+      "```",
+    ].join("\n");
+
+    expect(detectPatterns(context(text))).toEqual([]);
+  });
+
+  it("keeps prose candidates free of fenced Dataview tokens", () => {
+    const text = [
+      "温度升高导致反应速度增加。",
+      "",
+      "```dataview",
+      "LIST",
+      "- A 比 B 更稳定",
+      "- 因为查询命中所以显示结果",
+      "```",
+    ].join("\n");
+
+    const generated = candidates(text);
+    expect(generated.some((candidate) => candidate.category === "causal_gap")).toBe(true);
+    for (const candidate of generated) {
+      expect(candidate.targets.join(" ")).not.toMatch(/Dataview|LIST|查询命中|显示结果|A 比 B/iu);
+      expect(candidate.question).not.toMatch(/Dataview|LIST|查询命中|显示结果|A 比 B/iu);
+    }
+  });
+
+  it("excludes question-ending sentences from challenge extraction", () => {
+    const text = [
+      "印象里这类的分解主要是用于乘法简化运算。",
+      "为什么说是无监督学习方法呢？",
+      "只是因为用到了吗？",
+    ].join("\n");
+
+    const generated = candidates(text);
+    expect(generated).toEqual([]);
+  });
+
+  it("still extracts a declarative causal sentence beside a question", () => {
+    const text = "为什么 A 会发生？\n我认为主要是 B 导致的，因为 C。";
+    const causal = findCategory(text, "causal_gap");
+
+    expect(causal).toBeDefined();
+    expect(causal?.targets.join(" ")).not.toContain("为什么 A 会发生");
+  });
+
+  it("treats Chinese ellipsis as a sentence boundary for causal targets", () => {
+    const text = "码的好处就是写的太烂就会跑不起来，跑不起来一切免谈，所以在客观事实面前人类暂时合作了……艺术什么的就灵活的多，竞争性会很强的样子";
+    const causal = findCategory(text, "causal_gap");
+
+    expect(causal).toBeDefined();
+    expect(causal?.targets.join(" ")).not.toContain("艺术什么的");
+  });
+
+  it("treats ASCII ellipsis as a sentence boundary for causal targets", () => {
+    const text = "缓存失效所以需要重算...艺术什么的另说";
+    const causal = findCategory(text, "causal_gap");
+
+    expect(causal).toBeDefined();
+    expect(causal?.targets.join(" ")).not.toContain("艺术什么的");
+  });
+
+  it("never emits half-parenthetical causal targets from the CCD smoke text", () => {
+    const text = "CCD讲了很多关于噪声的内容，比如散列噪声、暗电流（所以需要制冷），细节见图";
+    const causal = findCategory(text, "causal_gap");
+
+    if (!causal) return;
+
+    for (const target of causal.targets) {
+      expect(target).not.toMatch(/[（(]\s*$/u);
+      expect(target).not.toMatch(/^[^（(]*[）)]/u);
+    }
+    expect(causal.targets.join(" ")).not.toContain("需要制冷），细节见图");
+  });
+
+  it("does not treat rhetorical 不是/只是…而是 contrast as a definition", () => {
+    const text = "它不再只是“像”网络暴力，而是直接揭示网络暴力可能就是某种宇宙中通行的、可以被量化和研究的“信息病理学”的一种表现。";
+
+    expect(findCategory(text, "definition_boundary")).toBeUndefined();
   });
 });
