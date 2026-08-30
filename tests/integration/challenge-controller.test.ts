@@ -62,7 +62,7 @@ function harness(markdown: string, provider = makeProvider(), overrides: Record<
 
 describe("Task 16 end-to-end controller", () => {
   it("uses the real local Task 8 path for the first section challenge with zero provider calls", async () => {
-    const h = harness("# 机制\n因为缓存命中率提高，所以请求延迟降低。\n");
+    const h = harness("# 机制\n缓存命中率提高导致请求延迟降低。\n");
     await h.controller.actions.requestChallenge();
     expect(h.controller.getState().viewState.kind).toBe("question");
     expect(h.controller.getState().currentCandidate?.source.scope).toBe("section");

@@ -43,7 +43,7 @@ describe("Task 16 production Obsidian wiring", () => {
   it("uses fully wired actions for normal two-argument production construction and does not call network on startup or first challenge", async () => {
     installDocument();
     const leaf = { setViewState: vi.fn(async () => undefined) } as unknown as WorkspaceLeaf;
-    let markdown = "# 机制\n因为缓存命中率提高，所以请求延迟降低。";
+    let markdown = "# 机制\n缓存命中率提高导致请求延迟降低。";
     const markdownView = fakeMarkdownView(() => markdown, (value) => { markdown = value; }, () => markdown.indexOf("缓存"));
     const writes: Record<string, string> = {};
     const workspace = {
