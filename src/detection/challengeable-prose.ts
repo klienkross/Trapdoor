@@ -6,6 +6,28 @@ function maskRange(characters: string[], from: number, to: number): void {
   }
 }
 
+function maskLeadingYamlFrontmatter(characters: string[]): void {
+  const text = characters.join("");
+  const opening = text.match(/^---[ \t]*(?:\r?\n|$)/u);
+  if (!opening || opening[0].length === text.length) return;
+
+  let lineStart = opening[0].length;
+
+  while (lineStart <= text.length) {
+    const newline = text.indexOf("\n", lineStart);
+    const lineEnd = newline === -1 ? text.length : newline;
+    const line = text.slice(lineStart, lineEnd).replace(/\r$/u, "");
+
+    if (/^---[ \t]*$/u.test(line)) {
+      maskRange(characters, 0, lineEnd);
+      return;
+    }
+
+    if (newline === -1) return;
+    lineStart = newline + 1;
+  }
+}
+
 function maskFencedCode(characters: string[]): void {
   const text = characters.join("");
   let lineStart = 0;
@@ -73,11 +95,12 @@ function maskQuestionSentences(characters: string[]): void {
  * while newlines and total UTF-16 string length are preserved. Projection
  * indices therefore stay identical to the original Markdown indices.
  *
- * Prefer missing a challenge over manufacturing one from fenced code or a
- * question fragment.
+ * Prefer missing a challenge over manufacturing one from Markdown structure,
+ * fenced code, or a question fragment.
  */
 export function projectChallengeableProse(text: string): string {
   const characters = text.split("");
+  maskLeadingYamlFrontmatter(characters);
   maskFencedCode(characters);
   maskQuestionSentences(characters);
   return characters.join("");
