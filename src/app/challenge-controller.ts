@@ -36,6 +36,7 @@ export type ChallengeControllerOptions = {
   provider: LLMProvider;
   persistFeedback: () => Promise<void>;
   renderState: (state: ChallengeViewState) => void;
+  copyQuestion?: (question: string) => void | Promise<void>;
   now?: () => number;
   selectChallenge?: ChallengeSelector;
   providerReady?: () => boolean;
@@ -110,18 +111,19 @@ export function createChallengeController(options: ChallengeControllerOptions): 
       return;
     }
 
-    publish({ kind: "idle" });
+    publish({ kind: "idle", copy: "这次没挖到值得问的点。" });
   };
 
   const requireCandidate = (): QuestionCandidate | undefined => state.currentCandidate;
 
-  const requireMatchingActiveNote = (candidate: QuestionCandidate): ActiveNote | undefined => {
+  const requireMatchingActiveNote = (candidate: QuestionCandidate, draft?: string): ActiveNote | undefined => {
     const active = options.activeNote.getActiveNote();
     if (active?.notePath === candidate.source.notePath) return active;
     publish({
       kind: "question",
       candidate,
       copy: "这道题来自另一篇笔记，请切回原笔记再继续。",
+      draft,
       debug: options.settings.debug,
     });
     return undefined;
@@ -170,6 +172,9 @@ export function createChallengeController(options: ChallengeControllerOptions): 
     requestChallenge: async () => {
       await requestLocalChallenge();
     },
+    copyQuestion: async (question: string) => {
+      await options.copyQuestion?.(question);
+    },
     replace: async () => {
       const candidate = requireCandidate();
       if (!candidate) return;
@@ -189,20 +194,35 @@ export function createChallengeController(options: ChallengeControllerOptions): 
     markCannotAnswer: async () => {
       await savePit("cannot_answer");
     },
-    continueDrill: async () => {
+    continueDrill: async (draft?: string) => {
       const candidate = requireCandidate();
       if (!candidate) return;
-      const active = requireMatchingActiveNote(candidate);
+      const active = requireMatchingActiveNote(candidate, draft);
       if (!active) return;
       if (options.providerReady && !options.providerReady()) {
-        publish({ kind: "question", candidate, copy: "先配置 endpoint 和 model 再继续拷打。", debug: options.settings.debug });
+        publish({
+          kind: "question",
+          candidate,
+          copy: "先配置 endpoint 和 model 再继续拷打。",
+          draft,
+          debug: options.settings.debug,
+        });
         return;
       }
       const sectionText = extractSection(active.markdown, active.cursorOffset, active.notePath).text;
       const wholeNoteText = extractWholeNote(active.markdown, active.notePath).text;
       const drillState = drill.start(candidate, sectionText, wholeNoteText);
       state = { ...state, drillState };
-      publish({ kind: "drill", candidate, turns: [] });
+      if (!draft) {
+        publish({ kind: "drill", candidate, turns: [] });
+        return;
+      }
+      try {
+        const result = await drill.answer(drillState, draft);
+        await renderDrillResult(result);
+      } catch {
+        publish({ kind: "question", candidate, copy: "拷打失败：请检查 provider 配置或返回格式。", draft, debug: options.settings.debug });
+      }
     },
     submitDrillAnswer: async (answer: string) => {
       if (!state.drillState || state.drillState.status !== "active") return;
