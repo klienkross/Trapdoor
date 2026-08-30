@@ -40,6 +40,8 @@ Before adding background, ask: **Does the worker need this fact to know what to 
 
 After routing durable information to its owner, emit only the handoff fields above. The implementation-boundary field contains only boundaries on the worker's implementation; omitted history, prompt-budget policy, and handoff-authoring rules have no worker-prompt slot.
 
+Before emitting the worker handoff, remove any sentence that regulates the contents of the handoff, prompt, historical records, or CI evidence rather than the worker's code, tests, behavior, or task execution.
+
 ## Pressure-scenario TDD
 
 When changing a handoff policy, test the pressure that caused prompt growth before adding prose:
