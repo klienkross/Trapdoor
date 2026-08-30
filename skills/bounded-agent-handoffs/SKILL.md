@@ -15,7 +15,7 @@ A worker prompt is the current assignment, not project memory. Keep durable stat
 
 | Information | Durable home |
 | --- | --- |
-| Current task, scope, reproduction, acceptance, prohibitions | Handoff prompt |
+| Current task, implementation scope, reproduction, acceptance, task prohibitions | Handoff prompt |
 | Stable engineering and architecture rules | Canonical repo docs / code contracts |
 | Regressions and expected behavior | Tests |
 | Old commits, merges, task completion history | Git |
@@ -33,12 +33,12 @@ Keep the handoff structurally small:
 4. current task;
 5. task-local reproduction or context that cannot be recovered elsewhere;
 6. task-specific acceptance criteria;
-7. explicit adjacent scope exclusions;
+7. task-specific implementation boundaries: code, behavior, or adjacent product scope the worker must not change;
 8. requested completion report, only when it differs from the project default.
 
 Before adding background, ask: **Does the worker need this fact to know what to change or how acceptance is judged?** If not, move it to its durable owner or omit it.
 
-After routing durable information to its owner, emit only the handoff fields above. **Scope exclusions are implementation boundaries for the worker**; they are not a place to restate omitted history, prompt-budget policy, or handoff-authoring rules.
+After routing durable information to its owner, emit only the handoff fields above. The implementation-boundary field contains only boundaries on the worker's implementation; omitted history, prompt-budget policy, and handoff-authoring rules have no worker-prompt slot.
 
 ## Pressure-scenario TDD
 
