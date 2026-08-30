@@ -164,7 +164,7 @@ describe("generateCandidates", () => {
   });
 
   it("uses the definition predicate as the bounded concept for counterexamples", () => {
-    const detections = detectPatterns(source("V 是 F 上的向量空间", 900)).filter(
+    const detections = detectPatterns(source("- V 是 F 上的向量空间", 900)).filter(
       (detection) => detection.category === "definition_boundary",
     );
     expect(detections).toHaveLength(1);
