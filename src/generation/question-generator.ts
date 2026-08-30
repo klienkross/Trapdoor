@@ -58,6 +58,10 @@ export function generateCandidates(detections: Detection[]): QuestionCandidate[]
     );
 
     for (const template of templates) {
+      if (detection.targets.length < (template.requiredTargets ?? 0)) {
+        continue;
+      }
+
       candidates.push({
         id: candidateId(detection, template.id),
         category: detection.category,

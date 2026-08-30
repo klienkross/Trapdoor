@@ -11,6 +11,7 @@ export type QuestionTemplate = {
   diagnosticityPrior: number;
   followupabilityPrior: number;
   followupRoutes: FollowupRoute[];
+  requiredTargets?: number;
 };
 
 function target(detection: Detection, index: number, fallback = "这段表述") {
@@ -54,6 +55,7 @@ function template(
   category: ChallengeCategory,
   followupRoutes: FollowupRoute[],
   renderer: (detection: Detection) => string,
+  requiredTargets?: number,
 ): QuestionTemplate {
   return {
     id,
@@ -62,6 +64,7 @@ function template(
     diagnosticityPrior: priors[category].diagnosticity,
     followupabilityPrior: priors[category].followupability,
     followupRoutes,
+    requiredTargets,
   };
 }
 
@@ -71,42 +74,48 @@ export const questionTemplates: QuestionTemplate[] = [
     "causal_gap",
     ["mechanism", "evidence", "boundary"],
     (detection) =>
-      `${trigger(detection)}把“${target(detection, 0)}”到“${target(detection, 1, "结果")}”之间压掉了哪些中间机制？`,
+      `${trigger(detection)}把“${target(detection, 0)}”到“${target(detection, 1)}”之间压掉了哪些中间机制？`,
+    2,
   ),
   template(
     "causal-gap-alternative-cause",
     "causal_gap",
     ["alternative_cause", "evidence", "boundary"],
     (detection) =>
-      `除了“${target(detection, 0)}”，还有什么原因也可能造成“${target(detection, 1, "这个结果")}”？怎么区分？`,
+      `除了“${target(detection, 0)}”，还有什么原因也可能造成“${target(detection, 1)}”？怎么区分？`,
+    2,
   ),
   template(
     "definition-boundary-boundary",
     "definition_boundary",
     ["boundary", "necessary_condition", "counterexample"],
     (detection) =>
-      `按这里${trigger(detection)}的说法，“${target(detection, 0)}”在什么边界条件下不再算“${target(detection, 1, "这个定义")}”？`,
+      `按这里${trigger(detection)}的说法，“${target(detection, 0)}”在什么边界条件下不再算“${target(detection, 1)}”？`,
+    2,
   ),
   template(
     "definition-boundary-counterexample",
     "definition_boundary",
     ["counterexample", "boundary", "necessary_condition"],
     (detection) =>
-      `什么东西看起来像“${target(detection, 0)}”，但其实落在这里${trigger(detection)}的边界外？`,
+      `什么东西看起来像“${target(detection, 1)}”，但其实不满足它的定义条件？`,
+    2,
   ),
   template(
     "evidence-jump-evidence",
     "evidence_jump",
     ["evidence", "necessary_condition", "boundary"],
     (detection) =>
-      `${trigger(detection)}这一步，哪条具体证据最能把“${target(detection, 0)}”推到“${target(detection, 1, "这个结论")}”？`,
+      `${trigger(detection)}这一步，哪条具体证据最能把“${target(detection, 0)}”推到“${target(detection, 1)}”？`,
+    2,
   ),
   template(
     "evidence-jump-alternative-explanation",
     "evidence_jump",
     ["evidence", "alternative_cause", "counterexample"],
     (detection) =>
-      `同样面对“${target(detection, 0)}”，还有什么解释也符合现有证据，却不必得到“${target(detection, 1, "这个结论")}”？`,
+      `同样面对“${target(detection, 0)}”，还有什么解释也符合现有证据，却不必得到“${target(detection, 1)}”？`,
+    2,
   ),
   template(
     "comparison-compression-dimension",
