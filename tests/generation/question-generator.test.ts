@@ -163,6 +163,62 @@ describe("generateCandidates", () => {
     expect(questions.every((question) => text.replace(/。$/, "").split(/[，,]/).some((part) => question.includes(part.trim())))).toBe(true);
   });
 
+  it("uses the definition predicate as the bounded concept for counterexamples", () => {
+    const detections = detectPatterns(source("V 是 F 上的向量空间", 900)).filter(
+      (detection) => detection.category === "definition_boundary",
+    );
+    expect(detections).toHaveLength(1);
+
+    const candidate = generateCandidates(detections).find(
+      (item) => item.templateId === "definition-boundary-counterexample",
+    );
+
+    expect(candidate).toBeDefined();
+    expect(candidate?.question).toContain("F 上的向量空间");
+    expect(candidate?.question).not.toContain("“是”的边界外");
+  });
+
+  it("does not generate binary causal templates when the result slot is missing", () => {
+    const incomplete: Detection = {
+      category: "causal_gap",
+      confidence: 0.9,
+      source: source("某个原因", 1000),
+      targets: ["某个原因"],
+      triggerTerms: ["导致"],
+    };
+
+    const candidates = generateCandidates([incomplete]);
+
+    expect(candidates.map((candidate) => candidate.templateId)).not.toContain("causal-gap-mechanism");
+    expect(candidates.map((candidate) => candidate.templateId)).not.toContain("causal-gap-alternative-cause");
+    expect(candidates.map((candidate) => candidate.question).join("\n")).not.toContain("这个结果");
+  });
+
+  it("does not generate binary evidence templates when the conclusion slot is missing", () => {
+    const incomplete: Detection = {
+      category: "evidence_jump",
+      confidence: 0.85,
+      source: source("某段证据", 1100),
+      targets: ["某段证据"],
+      triggerTerms: ["表明"],
+    };
+
+    const candidates = generateCandidates([incomplete]);
+
+    expect(candidates.map((candidate) => candidate.templateId)).not.toContain("evidence-jump-evidence");
+    expect(candidates.map((candidate) => candidate.templateId)).not.toContain("evidence-jump-alternative-explanation");
+    expect(candidates.map((candidate) => candidate.question).join("\n")).not.toContain("这个结论");
+  });
+
+  it("keeps complete binary causal relations challengeable", () => {
+    const candidates = generateCandidates([fixtures.causal_gap]);
+
+    expect(candidates.map((candidate) => candidate.templateId)).toEqual(
+      expect.arrayContaining(["causal-gap-mechanism", "causal-gap-alternative-cause"]),
+    );
+    expect(candidates.every((candidate) => candidate.question.includes("温度升高") || candidate.question.includes("反应速度增加"))).toBe(true);
+  });
+
   it("uses transparent Task 5 priors without performing final ranking", () => {
     const detection = fixtures.evidence_jump;
     const candidate = generateCandidates([detection])[0];
