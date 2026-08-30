@@ -1,5 +1,6 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 
 const REQUIRED_FILES = ["manifest.json", "main.js", "styles.css"];
 
@@ -105,6 +106,6 @@ export function packagePlugin(root = process.cwd()) {
   return output;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   packagePlugin();
 }
