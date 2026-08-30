@@ -38,6 +38,8 @@ Keep the handoff structurally small:
 
 Before adding background, ask: **Does the worker need this fact to know what to change or how acceptance is judged?** If not, move it to its durable owner or omit it.
 
+The skill's own authoring rules are not task context. Do not export meta-rules about prompt history, prompt budgets, or handoff construction into the worker assignment unless the current task is itself about handoff infrastructure.
+
 ## Pressure-scenario TDD
 
 When changing a handoff policy, test the pressure that caused prompt growth before adding prose:
