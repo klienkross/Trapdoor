@@ -38,7 +38,7 @@ Keep the handoff structurally small:
 
 Before adding background, ask: **Does the worker need this fact to know what to change or how acceptance is judged?** If not, move it to its durable owner or omit it.
 
-The skill's own authoring rules are not task context. Do not export meta-rules about prompt history, prompt budgets, or handoff construction into the worker assignment unless the current task is itself about handoff infrastructure.
+After routing durable information to its owner, emit only the handoff fields above. **Scope exclusions are implementation boundaries for the worker**; they are not a place to restate omitted history, prompt-budget policy, or handoff-authoring rules.
 
 ## Pressure-scenario TDD
 
