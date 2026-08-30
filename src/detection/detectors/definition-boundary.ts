@@ -3,6 +3,8 @@ import { collectTriggerTerms, makeDetection } from "./shared";
 
 const STRONG_DEFINITION_TERMS = ["指的是", "定义为", "本质上", "可以理解为", "意味着"] as const;
 const CLAUSE_BOUNDARY = /[。！？!?；;，,\n]/;
+const SENTENCE_BOUNDARY = /[。！？!?；;\n]/;
+const RHETORICAL_CONTRAST = /(?:(?:不再)?只是|不是)[^。！？!?；;\n]*而是/u;
 
 function hasCopularIs(text: string): boolean {
   for (let index = text.indexOf("是"); index >= 0; index = text.indexOf("是", index + 1)) {
@@ -10,9 +12,13 @@ function hasCopularIs(text: string): boolean {
 
     const before = text.slice(0, index).split(CLAUSE_BOUNDARY).at(-1)?.trim() ?? "";
     const after = text.slice(index + 1).split(CLAUSE_BOUNDARY)[0]?.trim() ?? "";
+    const sentenceBefore = text.slice(0, index).split(SENTENCE_BOUNDARY).at(-1) ?? "";
+    const sentenceAfter = text.slice(index + 1).split(SENTENCE_BOUNDARY)[0] ?? "";
+    const sentence = `${sentenceBefore}是${sentenceAfter}`;
 
     if (before.length < 2 || after.length === 0) continue;
     if (before.endsWith("总") || before.endsWith("还")) continue;
+    if (RHETORICAL_CONTRAST.test(sentence)) continue;
 
     return true;
   }
