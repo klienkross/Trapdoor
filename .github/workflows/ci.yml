@@ -28,3 +28,6 @@ jobs:
 
       - name: Build check
         run: npm run build
+
+      - name: Package smoke check
+        run: npm run package
