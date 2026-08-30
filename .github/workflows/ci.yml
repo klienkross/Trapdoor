@@ -23,6 +23,9 @@ jobs:
       - name: Run tests
         run: npm test
 
+      - name: Agent contract check
+        run: npm run agent:check
+
       - name: Type check
         run: npm run typecheck
 
