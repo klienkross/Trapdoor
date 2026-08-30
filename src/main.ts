@@ -7,6 +7,7 @@ import { OpenAICompatibleProvider } from "./llm/openai-compatible-provider";
 import { loadFeedback, saveFeedback, type TextFileStore } from "./persistence/feedback-persistence";
 import { detectLegacyFeedbackOnce } from "./persistence/legacy-state";
 import { loadPluginData, type PluginDataStore } from "./persistence/settings-store";
+import { writeClipboardText } from "./ui/clipboard";
 import {
   ChallengeView,
   TRAPDOOR_VIEW_TYPE,
@@ -99,6 +100,7 @@ export default class TrapdoorPlugin extends Plugin {
       settings: pluginData.settings,
       provider,
       providerReady: () => Boolean(pluginData.settings.endpoint.trim() && pluginData.settings.model.trim()),
+      copyQuestion: writeClipboardText,
       persistFeedback: () => saveFeedback(files, feedbackStore),
       renderState: (state) => this.challengeView?.renderState(state),
       initialCopy: legacy.legacyStateFound

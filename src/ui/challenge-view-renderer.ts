@@ -11,6 +11,7 @@ export type QuestionViewState = {
   kind: "question";
   candidate: QuestionCandidate;
   copy?: string;
+  draft?: string;
   debug: boolean;
 };
 
@@ -45,7 +46,8 @@ export type ChallengeViewAction = () => void | Promise<void>;
 
 export type ChallengeViewActions = {
   requestChallenge: ChallengeViewAction;
-  continueDrill: ChallengeViewAction;
+  continueDrill: (draft?: string) => void | Promise<void>;
+  copyQuestion?: (question: string) => void | Promise<void>;
   markUseful: ChallengeViewAction;
   markCannotAnswer: ChallengeViewAction;
   markBad: ChallengeViewAction;
@@ -111,9 +113,22 @@ function renderQuestion(
   appendText(root, "div", sourceLabel(state.candidate), "trapdoor-source");
   appendText(root, "div", state.candidate.question, "trapdoor-question-text");
 
+  const draft = root.ownerDocument.createElement("textarea");
+  draft.className = "trapdoor-question-draft";
+  draft.setAttribute("aria-label", "当前问题草稿");
+  draft.placeholder = "先写两句也行……";
+  draft.value = state.draft ?? "";
+  root.append(draft);
+
   const actionBar = root.ownerDocument.createElement("div");
   actionBar.className = "trapdoor-question-actions";
-  appendButton(actionBar, "继续拷打", actions.continueDrill);
+  if (actions.copyQuestion) {
+    appendButton(actionBar, "复制问题", () => actions.copyQuestion?.(state.candidate.question));
+  }
+  appendButton(actionBar, "继续拷打", () => {
+    const answer = draft.value.trim();
+    return actions.continueDrill(answer || undefined);
+  });
   appendButton(actionBar, "有东西", actions.markUseful);
   appendButton(actionBar, "答不上来", actions.markCannotAnswer);
   appendButton(actionBar, "什么破问题", actions.markBad);

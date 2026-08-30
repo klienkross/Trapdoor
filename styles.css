@@ -16,6 +16,13 @@
   line-height: 1.5;
 }
 
+.trapdoor-question-draft {
+  display: block;
+  width: 100%;
+  min-height: 5rem;
+  resize: vertical;
+}
+
 .trapdoor-question-actions {
   display: flex;
   flex-wrap: wrap;
