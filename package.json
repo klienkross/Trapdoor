@@ -7,7 +7,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "build": "npm run typecheck && esbuild src/main.ts --bundle --platform=node --target=es2022 --format=cjs --external:obsidian --outfile=main.js",
-    "package": "npm run build && node scripts/package-plugin.mjs"
+    "package": "npm run build && node scripts/package-plugin.mjs",
+    "agent:check": "node scripts/check-agent-contract.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
