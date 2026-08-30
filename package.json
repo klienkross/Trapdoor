@@ -1,0 +1,20 @@
+{
+  "name": "trapdoor-obsidian-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "description": "An Obsidian plugin that disrupts suspiciously fluent understanding with targeted questions.",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "build": "npm run typecheck && esbuild src/main.ts --bundle --platform=node --target=es2022 --format=cjs --external:obsidian --outfile=main.js",
+    "package": "npm run build && node scripts/package-plugin.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "esbuild": "^0.28.2",
+    "jsdom": "^26.0.0",
+    "obsidian": "^1.8.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.0.0"
+  }
+}
