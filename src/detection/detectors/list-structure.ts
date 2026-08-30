@@ -3,12 +3,28 @@ import { makeDetection } from "./shared";
 
 const LIST_ITEM_RE = /^(\s*)([-+*]|\d+[.)])\s+(.+)$/;
 
-export function detectListStructure(source: NoteContext): Detection | undefined {
-  const items = source.text
-    .split("\n")
-    .map((line) => line.match(LIST_ITEM_RE))
-    .filter((match): match is RegExpMatchArray => match !== null);
+type ListItem = RegExpMatchArray;
 
+function firstViableListBlock(text: string): ListItem[] {
+  let current: ListItem[] = [];
+
+  for (const line of text.split("\n")) {
+    const match = line.match(LIST_ITEM_RE);
+
+    if (match) {
+      current.push(match);
+      continue;
+    }
+
+    if (current.length >= 2) return current;
+    current = [];
+  }
+
+  return current.length >= 2 ? current : [];
+}
+
+export function detectListStructure(source: NoteContext): Detection | undefined {
+  const items = firstViableListBlock(source.text);
   if (items.length < 2) return undefined;
 
   const triggerTerms = [...new Set(items.map((match) => match[2]))];
