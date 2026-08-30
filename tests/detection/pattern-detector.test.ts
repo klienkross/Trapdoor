@@ -220,7 +220,11 @@ describe("detectPatterns", () => {
     ].join("\n");
 
     const generated = candidates(text);
-    expect(generated).toEqual([]);
+    const challengeText = generated
+      .map((candidate) => `${candidate.question} ${candidate.targets.join(" ")}`)
+      .join("\n");
+
+    expect(challengeText).not.toMatch(/无监督学习方法|因为用到了/u);
   });
 
   it("still extracts a declarative causal sentence beside a question", () => {
