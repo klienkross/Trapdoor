@@ -1,10 +1,27 @@
 import type { Detection, NoteContext } from "../../domain/types";
 import { collectTriggerTerms, makeDetection } from "./shared";
 
-const EVIDENCE_TERMS = ["这意味着", "可以看出", "说明", "表明", "证明", "可见", "意味着"] as const;
+const EVIDENCE_TERMS = [
+  "这意味着",
+  "可以看出",
+  "可以认为",
+  "说明",
+  "表明",
+  "证明",
+  "意味着",
+] as const;
+
+function hasInferenceKeJian(text: string): boolean {
+  if (text.includes("由此可见")) return true;
+
+  return /(?:^|[。！？!?；;，,：:\n]|…{2,}|\.{3,})[ \t]*可见(?:[ \t]|[，,：:；;。！？!?]|$)/u.test(
+    text,
+  );
+}
 
 export function detectEvidenceJump(source: NoteContext): Detection | undefined {
   const triggerTerms = collectTriggerTerms(source.text, EVIDENCE_TERMS);
+  if (hasInferenceKeJian(source.text)) triggerTerms.push("可见");
   if (triggerTerms.length === 0) return undefined;
 
   const confidence = triggerTerms.includes("证明") ? 0.9 : 0.85;
