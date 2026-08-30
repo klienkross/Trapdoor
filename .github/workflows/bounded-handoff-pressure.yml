@@ -6,6 +6,7 @@ on:
       - infra/bounded-agent-handoff-skill
     paths:
       - .github/workflows/bounded-handoff-pressure.yml
+      - skills/bounded-agent-handoffs/SKILL.md
 
 permissions:
   contents: read
