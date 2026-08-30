@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "paths": {
+    "projectContract": "docs/agent/project-contract.md",
+    "architecture": "docs/agent/architecture-map.md",
+    "taskTemplate": "docs/agent/task-template.md",
+    "productSpec": "docs/superpowers/specs/2026-08-29-cognitive-friction-obsidian-plugin-design.md"
+  },
+  "promptBudgetWords": {
+    "bugfix": 1500,
+    "feature": 2500
+  }
+}
